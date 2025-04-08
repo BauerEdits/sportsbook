@@ -69,19 +69,27 @@
     let lines = [];
     let parlayCart = [];
 
-    // Load betting lines from localStorage if they exist
-    function loadLinesFromLocalStorage() {
-        const savedLines = localStorage.getItem('lines');
-        if (savedLines) {
-            lines = JSON.parse(savedLines);
-        } else {
-            lines = []; // If no lines are saved, initialize an empty array
-        }
+    // Initialize data from localStorage
+    function initializeData() {
+      const savedUsers = localStorage.getItem('users');
+      if (savedUsers) {
+        users = JSON.parse(savedUsers);
+      }
+      const savedLines = localStorage.getItem('lines');
+      if (savedLines) {
+        lines = JSON.parse(savedLines);
+      }
+      const savedParlays = localStorage.getItem('parlayCart');
+      if (savedParlays) {
+        parlayCart = JSON.parse(savedParlays);
+      }
     }
 
-    // Save betting lines to localStorage
-    function saveLinesToLocalStorage() {
-        localStorage.setItem('lines', JSON.stringify(lines));
+    // Save data to localStorage
+    function saveData() {
+      localStorage.setItem('users', JSON.stringify(users));
+      localStorage.setItem('lines', JSON.stringify(lines));
+      localStorage.setItem('parlayCart', JSON.stringify(parlayCart));
     }
 
     // Show the correct login form based on the type (admin or member)
@@ -110,12 +118,12 @@
         console.log("Logged in as member:", username);
         document.getElementById("currentUserDisplay").innerText = `Logged in as: ${username}`;
         document.getElementById("app").style.display = 'block';
-        loadLinesFromLocalStorage(); // Load lines from localStorage when member logs in
         renderLines();
         updateBalanceDisplay();
         renderParlayHistory();
         parlayCart = [];
         renderParlay();
+        saveData();  // Save data to localStorage after login
       } else if (type === 'admin') {
         const adminUsername = document.getElementById("adminUsernameInput").value;
         const adminPassword = document.getElementById("adminPasswordInput").value;
@@ -128,12 +136,12 @@
           console.log("Logged in as admin:", adminUsername);
           document.getElementById("currentUserDisplay").innerText = `Logged in as Admin`;
           document.getElementById("app").style.display = 'block';
-          loadLinesFromLocalStorage(); // Load lines from localStorage when admin logs in
           renderLines();
           updateBalanceDisplay();
           renderParlayHistory();
           parlayCart = [];
           renderParlay();
+          saveData();  // Save data to localStorage after login
         } else {
           alert("Invalid admin credentials");
         }
@@ -144,26 +152,176 @@
       document.getElementById("balanceDisplay").innerText = users[currentUser].balance;
     }
 
-    function createBetLine() {
-        if (!isAdmin) return alert("Only admins can create new bet lines.");
-        const name = document.getElementById("lineName").value;
-        const optionA = document.getElementById("optionA").value;
-        const optionB = document.getElementById("optionB").value;
-        if (!name || !optionA || !optionB) return alert("Fill all fields!");
-        const line = {
-            id: Date.now(),
-            name,
-            optionA,
-            optionB,
-            result: null
-        };
-        lines.push(line);
-        saveLinesToLocalStorage(); // Save lines to localStorage after adding a new line
-        renderLines();
+    function getParlayMultiplier(legCount) {
+      if (legCount === 2) return 3;
+      if (legCount === 3) return 6;
+      if (legCount === 4) return 10;
+      if (legCount === 5) return 15;
+      if (legCount >= 6) return 25;
+      return 2;
     }
 
-    // Add the other functions as needed (declareWinner, renderParlay, etc.)
+    function createBetLine() {
+      if (!isAdmin) return alert("Only admins can create new bet lines.");
+      const name = document.getElementById("lineName").value;
+      const optionA = document.getElementById("optionA").value;
+      const optionB = document.getElementById("optionB").value;
+      if (!name || !optionA || !optionB) return alert("Fill all fields!");
+      const line = {
+        id: Date.now(),
+        name,
+        optionA,
+        optionB,
+        result: null
+      };
+      lines.push(line);
+      renderLines();
+      saveData();  // Save data to localStorage after creating a new bet line
+    }
 
+    function addToParlay(lineId, side) {
+      const existing = parlayCart.find(p => p.lineId === lineId);
+      if (existing) return alert("Already added this line to parlay!");
+      const line = lines.find(l => l.id === lineId);
+      parlayCart.push({ lineId, side, line });
+      renderParlay();
+      saveData();  // Save data to localStorage after adding to parlay
+    }
+
+    function removeFromParlay(index) {
+      parlayCart.splice(index, 1);
+      renderParlay();
+      saveData();  // Save data to localStorage after removing from parlay
+    }
+
+    function renderParlay() {
+      const list = document.getElementById("parlayList");
+      list.innerHTML = "";
+      parlayCart.forEach((pick, index) => {
+        const sideName = pick.side === 'A' ? pick.line.optionA : pick.line.optionB;
+        const li = document.createElement("li");
+        li.innerHTML = `${pick.line.name}: ${sideName} <button onclick="removeFromParlay(${index})">❌</button>`;
+        list.appendChild(li);
+      });
+      const payoutText = parlayCart.length >= 2
+        ? `${getParlayMultiplier(parlayCart.length)}x`
+        : "N/A (need at least 2 picks)";
+      document.getElementById("payoutPreview").innerText = `Potential Payout: ${payoutText}`;
+    }
+
+    function placeParlay() {
+      if (parlayCart.length < 2) return alert("Add at least 2 picks for a parlay!");
+      const amount = parseInt(prompt("Bet amount?"));
+      if (isNaN(amount) || amount <= 0) return;
+      if (amount > users[currentUser].balance) return alert("Insufficient balance");
+
+      users[currentUser].balance -= amount;
+
+      const parlay = {
+        picks: JSON.parse(JSON.stringify(parlayCart)),
+        amount,
+        resolved: false,
+        result: "Pending"
+      };
+      users[currentUser].parlays.push(parlay);
+      parlayCart = [];
+      renderParlay();
+      updateBalanceDisplay();
+      renderParlayHistory();
+      saveData();  // Save data to localStorage after placing a parlay
+    }
+
+    function declareWinner(lineId, winner) {
+      if (!isAdmin) return alert("Only admins can declare winners.");
+      const line = lines.find(l => l.id === lineId);
+      if (line.result) return alert("Already resolved");
+      line.result = winner;
+      for (const user in users) {
+        users[user].parlays.forEach(parlay => {
+          if (parlay.resolved) return;
+          const allResolved = parlay.picks.every(p => {
+            const l = lines.find(l => l.id === p.lineId);
+            return l.result !== null;
+          });
+          if (allResolved) {
+            const allCorrect = parlay.picks.every(p => {
+              const l = lines.find(l => l.id === p.lineId);
+              return l.result === p.side;
+            });
+            if (allCorrect) {
+              const mult = getParlayMultiplier(parlay.picks.length);
+              const payout = parlay.amount * mult;
+              users[user].balance += payout;
+              parlay.result = `✅ Won $${payout}`;
+            } else {
+              parlay.result = "❌ Lost";
+            }
+            parlay.resolved = true;
+          }
+        });
+      }
+      renderLines();
+      updateBalanceDisplay();
+      renderParlayHistory();
+      saveData();  // Save data to localStorage after declaring a winner
+    }
+
+    function deleteBetLine(lineId) {
+      if (!isAdmin) return alert("Only admins can delete bet lines.");
+      const lineIndex = lines.findIndex(l => l.id === lineId);
+      if (lineIndex !== -1) {
+        lines.splice(lineIndex, 1);
+        renderLines();
+        saveData();  // Save data to localStorage after deleting a bet line
+      }
+    }
+
+    function renderLines() {
+      const container = document.getElementById("lines");
+      container.innerHTML = "";
+      lines.forEach(line => {
+        const div = document.createElement("div");
+        div.className = "bet-line";
+        div.innerHTML = `
+
+          <h3>${line.name}</h3>
+          <button onclick="addToParlay(${line.id}, 'A')">${line.optionA}</button>
+          <button onclick="addToParlay(${line.id}, 'B')">${line.optionB}</button>
+          <br><br>
+          ${isAdmin ? `
+
+            <strong>Admin Controls:</strong>
+            <button onclick="declareWinner(${line.id}, 'A')">Set ${line.optionA} Wins</button>
+            <button onclick="declareWinner(${line.id}, 'B')">Set ${line.optionB} Wins</button>
+            <button onclick="deleteBetLine(${line.id})">Delete Line</button>
+
+          ` : ''}
+
+          <p><strong>Result:</strong> ${line.result ? (line.result === 'A' ? line.optionA : line.optionB) : "Not Set"}</p>
+        `;
+        container.appendChild(div);
+      });
+    }
+
+    function renderParlayHistory() {
+      const container = document.getElementById("parlayHistoryList");
+      container.innerHTML = "";
+      if (!currentUser) return;
+      users[currentUser].parlays.forEach(parlay => {
+        const div = document.createElement("div");
+        div.innerHTML = `
+          <strong>Parlay (${parlay.picks.length} picks) - Bet: $${parlay.amount}</strong><br>
+          <ul>
+            ${parlay.picks.map(p => `<li>${p.line.name}: ${p.side === 'A' ? p.line.optionA : p.line.optionB}</li>`).join('')}
+          </ul>
+          <p><strong>Result:</strong> ${parlay.result || "Pending"}</p>
+        `;
+        container.appendChild(div);
+      });
+    }
+
+    // Initialize the app by loading data from localStorage
+    initializeData();
   </script>
 </body>
 </html>
