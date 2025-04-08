@@ -62,35 +62,12 @@
   <div id="currentUserDisplay" style="margin-top: 20px;"></div>
 
   <script>
-    let users = {}; // { username: { balance: number, parlays: [] } }
+    let users = JSON.parse(localStorage.getItem("users")) || {}; // { username: { balance: number, parlays: [] } }
     let currentUser = null;
     let isAdmin = false;
 
-    let lines = [];
+    let lines = JSON.parse(localStorage.getItem("lines")) || [];
     let parlayCart = [];
-
-    // Initialize data from localStorage
-    function initializeData() {
-      const savedUsers = localStorage.getItem('users');
-      if (savedUsers) {
-        users = JSON.parse(savedUsers);
-      }
-      const savedLines = localStorage.getItem('lines');
-      if (savedLines) {
-        lines = JSON.parse(savedLines);
-      }
-      const savedParlays = localStorage.getItem('parlayCart');
-      if (savedParlays) {
-        parlayCart = JSON.parse(savedParlays);
-      }
-    }
-
-    // Save data to localStorage
-    function saveData() {
-      localStorage.setItem('users', JSON.stringify(users));
-      localStorage.setItem('lines', JSON.stringify(lines));
-      localStorage.setItem('parlayCart', JSON.stringify(parlayCart));
-    }
 
     // Show the correct login form based on the type (admin or member)
     function showLoginForm(type) {
@@ -123,7 +100,6 @@
         renderParlayHistory();
         parlayCart = [];
         renderParlay();
-        saveData();  // Save data to localStorage after login
       } else if (type === 'admin') {
         const adminUsername = document.getElementById("adminUsernameInput").value;
         const adminPassword = document.getElementById("adminPasswordInput").value;
@@ -141,7 +117,6 @@
           renderParlayHistory();
           parlayCart = [];
           renderParlay();
-          saveData();  // Save data to localStorage after login
         } else {
           alert("Invalid admin credentials");
         }
@@ -161,6 +136,7 @@
       return 2;
     }
 
+    // Create a new bet line and update the localStorage
     function createBetLine() {
       if (!isAdmin) return alert("Only admins can create new bet lines.");
       const name = document.getElementById("lineName").value;
@@ -175,8 +151,8 @@
         result: null
       };
       lines.push(line);
+      localStorage.setItem("lines", JSON.stringify(lines)); // Save to localStorage
       renderLines();
-      saveData();  // Save data to localStorage after creating a new bet line
     }
 
     function addToParlay(lineId, side) {
@@ -185,13 +161,11 @@
       const line = lines.find(l => l.id === lineId);
       parlayCart.push({ lineId, side, line });
       renderParlay();
-      saveData();  // Save data to localStorage after adding to parlay
     }
 
     function removeFromParlay(index) {
       parlayCart.splice(index, 1);
       renderParlay();
-      saveData();  // Save data to localStorage after removing from parlay
     }
 
     function renderParlay() {
@@ -224,11 +198,11 @@
         result: "Pending"
       };
       users[currentUser].parlays.push(parlay);
+      localStorage.setItem("users", JSON.stringify(users)); // Save to localStorage
       parlayCart = [];
       renderParlay();
       updateBalanceDisplay();
       renderParlayHistory();
-      saveData();  // Save data to localStorage after placing a parlay
     }
 
     function declareWinner(lineId, winner) {
@@ -260,10 +234,10 @@
           }
         });
       }
+      localStorage.setItem("users", JSON.stringify(users)); // Save updated users to localStorage
       renderLines();
       updateBalanceDisplay();
       renderParlayHistory();
-      saveData();  // Save data to localStorage after declaring a winner
     }
 
     function deleteBetLine(lineId) {
@@ -271,8 +245,8 @@
       const lineIndex = lines.findIndex(l => l.id === lineId);
       if (lineIndex !== -1) {
         lines.splice(lineIndex, 1);
+        localStorage.setItem("lines", JSON.stringify(lines)); // Save updated lines to localStorage
         renderLines();
-        saveData();  // Save data to localStorage after deleting a bet line
       }
     }
 
@@ -283,20 +257,16 @@
         const div = document.createElement("div");
         div.className = "bet-line";
         div.innerHTML = `
-
           <h3>${line.name}</h3>
           <button onclick="addToParlay(${line.id}, 'A')">${line.optionA}</button>
           <button onclick="addToParlay(${line.id}, 'B')">${line.optionB}</button>
           <br><br>
-          ${isAdmin ? `
-
+          ${isAdmin ? ` 
             <strong>Admin Controls:</strong>
             <button onclick="declareWinner(${line.id}, 'A')">Set ${line.optionA} Wins</button>
             <button onclick="declareWinner(${line.id}, 'B')">Set ${line.optionB} Wins</button>
             <button onclick="deleteBetLine(${line.id})">Delete Line</button>
-
           ` : ''}
-
           <p><strong>Result:</strong> ${line.result ? (line.result === 'A' ? line.optionA : line.optionB) : "Not Set"}</p>
         `;
         container.appendChild(div);
@@ -319,9 +289,6 @@
         container.appendChild(div);
       });
     }
-
-    // Initialize the app by loading data from localStorage
-    initializeData();
   </script>
 </body>
 </html>
