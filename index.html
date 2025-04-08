@@ -62,7 +62,7 @@
   <div id="currentUserDisplay" style="margin-top: 20px;"></div>
 
   <script>
-    let users = JSON.parse(localStorage.getItem("users")) || {}; // { username: { balance: number, parlays: [] } }
+    let users = {}; // { username: { balance: number, parlays: [] } }
     let currentUser = null;
     let isAdmin = false;
 
@@ -136,13 +136,22 @@
       return 2;
     }
 
-    // Create a new bet line and update the localStorage
     function createBetLine() {
-      if (!isAdmin) return alert("Only admins can create new bet lines.");
+      if (!isAdmin) {
+        console.log("Not an admin, cannot create bet line");
+        return alert("Only admins can create new bet lines.");
+      }
+
       const name = document.getElementById("lineName").value;
       const optionA = document.getElementById("optionA").value;
       const optionB = document.getElementById("optionB").value;
-      if (!name || !optionA || !optionB) return alert("Fill all fields!");
+
+      if (!name || !optionA || !optionB) {
+        console.log("Missing input fields");
+        return alert("Fill all fields!");
+      }
+
+      // Create a new bet line
       const line = {
         id: Date.now(),
         name,
@@ -150,8 +159,19 @@
         optionB,
         result: null
       };
+
+      console.log("Creating bet line:", line);
+
+      // Add it to the lines array
       lines.push(line);
-      localStorage.setItem("lines", JSON.stringify(lines)); // Save to localStorage
+
+      // Save to localStorage
+      localStorage.setItem("lines", JSON.stringify(lines));
+
+      // Check if the lines array is being updated
+      console.log("Updated lines:", lines);
+
+      // Render the new lines to the page
       renderLines();
     }
 
@@ -198,7 +218,6 @@
         result: "Pending"
       };
       users[currentUser].parlays.push(parlay);
-      localStorage.setItem("users", JSON.stringify(users)); // Save to localStorage
       parlayCart = [];
       renderParlay();
       updateBalanceDisplay();
@@ -234,7 +253,6 @@
           }
         });
       }
-      localStorage.setItem("users", JSON.stringify(users)); // Save updated users to localStorage
       renderLines();
       updateBalanceDisplay();
       renderParlayHistory();
@@ -245,7 +263,6 @@
       const lineIndex = lines.findIndex(l => l.id === lineId);
       if (lineIndex !== -1) {
         lines.splice(lineIndex, 1);
-        localStorage.setItem("lines", JSON.stringify(lines)); // Save updated lines to localStorage
         renderLines();
       }
     }
