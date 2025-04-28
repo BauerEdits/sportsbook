@@ -1,566 +1,473 @@
 <!DOCTYPE html>
-<html>
-
-<html>
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>JSFiddle f1Lvh2ra</title>
-
-  <style>
-    
-  </style>
-
-  
-</head>
-<body>
-  <!DOCTYPE html>
 <html lang="en">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Fake Betting Website</title>
-  <style>
-    body { font-family: Arial, sans-serif; margin: 20px; }
-    .hidden { display: none; }
-    h2, h3 { color: #333; }
-    input, button, select { margin: 5px; padding: 5px; }
-    .container { margin-bottom: 20px; }
-    table, th, td { border: 1px solid #ccc; border-collapse: collapse; padding: 5px; }
-    a { cursor: pointer; color: blue; text-decoration: underline; }
-    .line-block { margin-bottom: 10px; padding: 5px; border: 1px solid #ddd; }
-  </style>
-</head>
-<body>
-  <!-- Login Section -->
-  <div id="loginSection" class="container">
-    <h2>Login</h2>
-    <form id="loginForm">
-      <label for="loginUsername">Username: </label>
-      <input type="text" id="loginUsername" required /><br />
-      <label for="loginPassword">Password: </label>
-      <input type="password" id="loginPassword" required /><br />
-      <button type="submit">Login</button>
-    </form>
-    <p id="loginMessage" style="color:red;"></p>
-    <p>Don't have an account? <a id="showSignup">Sign Up</a></p>
-  </div>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Fake Betting Website with Firebase</title>
+    <style>
+      body { font-family: Arial, sans-serif; margin: 20px; }
+      .hidden { display: none; }
+      h2, h3, h4 { color: #333; }
+      input, button, select { margin: 5px; padding: 5px; }
+      .container { margin-bottom: 20px; }
+      table, th, td { border: 1px solid #ccc; border-collapse: collapse; padding: 5px; }
+      a { cursor: pointer; color: blue; text-decoration: underline; }
+      .line-block { margin-bottom: 10px; padding: 5px; border: 1px solid #ddd; }
+      .option-btn { display: inline-block; margin-right: 5px; padding: 5px 10px; }
+      .selected { background-color: lightgreen; }
+    </style>
+    <!-- Firebase SDKs -->
+    <script src="https://www.gstatic.com/firebasejs/9.14.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.14.0/firebase-database-compat.js"></script>
+  </head>
+  <body>
+    <!-- Login -->
+    <div id="loginSection" class="container">
+      <h2>Login</h2>
+      <form id="loginForm">
+        <label>Username:</label>
+        <input id="loginUsername" required /><br/>
+        <label>Password:</label>
+        <input type="password" id="loginPassword" required /><br/>
+        <button>Login</button>
+      </form>
+      <p id="loginMessage" style="color:red;"></p>
+      <p>Don't have an account? <a id="showSignup">Sign Up</a></p>
+    </div>
 
-  <!-- Sign Up Section -->
-  <div id="signupSection" class="container hidden">
-    <h2>Sign Up</h2>
-    <form id="signupForm">
-      <label for="signupUsername">Username: </label>
-      <input type="text" id="signupUsername" required /><br />
-      <label for="signupPassword">Password: </label>
-      <input type="password" id="signupPassword" required /><br />
-      <label for="signupConfirm">Confirm Password: </label>
-      <input type="password" id="signupConfirm" required /><br />
-      <label for="signupRole">Role: </label>
-      <select id="signupRole">
-        <option value="member">Member</option>
-        <option value="admin">Admin</option>
-      </select><br />
-      <button type="submit">Sign Up</button>
-    </form>
-    <p id="signupMessage" style="color:red;"></p>
-    <p>Already have an account? <a id="showLogin">Log In</a></p>
-  </div>
+    <!-- Sign Up -->
+    <div id="signupSection" class="container hidden">
+      <h2>Sign Up</h2>
+      <form id="signupForm">
+        <label>Username:</label>
+        <input id="signupUsername" required /><br/>
+        <label>Password:</label>
+        <input type="password" id="signupPassword" required /><br/>
+        <label>Confirm:</label>
+        <input type="password" id="signupConfirm" required /><br/>
+        <label>Role:</label>
+        <select id="signupRole">
+          <option value="member">Member</option>
+          <option value="admin">Admin</option>
+        </select><br/>
+        <button>Sign Up</button>
+      </form>
+      <p id="signupMessage" style="color:red;"></p>
+      <p>Already have an account? <a id="showLogin">Log In</a></p>
+    </div>
 
-  <!-- Admin Dashboard -->
-  <div id="adminDashboard" class="container hidden">
-    <h2>Admin Dashboard</h2>
-    <button id="logoutBtnAdmin">Logout</button>
-    <h3>Manage Lines</h3>
-    <!-- Admin creates lines by entering a description and two option texts -->
-    <form id="createLineForm">
-      <input type="text" id="lineDescription" placeholder="Line Description (e.g., Dylan Points)" required />
-      <input type="text" id="option1Text" placeholder="Option 1 (e.g., Over 20 Points)" required />
-      <input type="text" id="option2Text" placeholder="Option 2 (e.g., Under 20 Points)" required />
-      <button type="submit">Create Line</button>
-    </form>
-    <div id="linesContainer"></div>
-    <h3>Resolve Bets</h3>
-    <button id="resolveBetsBtn">Resolve Unsettled Bets</button>
-  </div>
+    <!-- Admin -->
+    <div id="adminDashboard" class="container hidden">
+      <h2>Admin Dashboard</h2>
+      <button id="logoutBtnAdmin">Logout</button>
+      <h3>Manage Lines</h3>
+      <form id="createLineForm">
+        <input id="lineDescription" placeholder="Line Description" required />
+        <input id="option1Text" placeholder="Option 1" required />
+        <input id="option2Text" placeholder="Option 2" required />
+        <button>Create Line</button>
+      </form>
+      <div id="linesContainer"></div>
+      <h3>Live Plays</h3>
+      <div id="livePlaysContainer"></div>
+      <h3>Past Plays</h3>
+      <div id="pastPlaysContainer"></div>
+      <h3>Resolve Bets</h3>
+      <button id="resolveBetsBtn">Resolve Unsettled Bets</button>
+    </div>
 
-  <!-- Member Dashboard -->
-  <div id="memberDashboard" class="container hidden">
-    <h2>Member Dashboard</h2>
-    <button id="logoutBtnMember">Logout</button>
-    <!-- Bonus & Balance Section -->
-    <div id="bonusSection" style="margin-bottom: 20px;"></div>
-    <h3>Place a New Bet</h3>
-    <form id="placeBetForm">
-      <label>Bet Amount: </label>
-      <input type="number" step="0.01" id="betAmount" required /><br />
-      <p>Select between 2 and 6 Lines by choosing one option per line:</p>
+    <!-- Member -->
+    <div id="memberDashboard" class="container hidden">
+      <h2>Member Dashboard</h2>
+      <button id="logoutBtnMember">Logout</button>
+      <div id="bonusSection" style="margin-bottom:20px;"></div>
+      <h3>Available Lines</h3>
       <div id="availableLines"></div>
-      <p id="potentialPayoutDisplay">Potential Payout: N/A</p>
-      <button type="submit">Place Bet</button>
-    </form>
-    <h3>Live Bets</h3>
-    <div id="liveBetsContainer"></div>
-    <h3>Past Bets</h3>
-    <div id="pastBetsContainer"></div>
-  </div>
+      <form id="placeBetForm">
+        <label>Bet Amount:</label>
+        <input type="number" step="0.01" id="betAmount" required /><br/>
+        <p id="potentialPayoutDisplay">Potential Payout: N/A</p>
+        <button>Place Bet</button>
+      </form>
+      <h3>Live Bets</h3>
+      <div id="liveBetsContainer"></div>
+      <h3>Past Bets</h3>
+      <div id="pastBetsContainer"></div>
+    </div>
 
-  <script>
-    document.addEventListener('DOMContentLoaded', function() {
-      // --- STORAGE KEYS AND MULTIPLIERS ---
-      const USERS_KEY = 'betting_users';
-      const LINES_KEY = 'betting_lines';
-      const BETS_KEY = 'betting_bets';
-      // Multipliers: 2 legs = 3x, 3 legs = 7x, 4 legs = 10x, 5 legs = 12x, 6 legs = 25x.
-      const MULTIPLIERS = { 2: 3, 3: 7, 4: 10, 5: 12, 6: 25 };
+    <script>
+      // Shared vars
+      let lines = [], bets = [], pendingSelections = {};
 
-      // --- DATA PERSISTENCE FUNCTIONS ---
-      function loadData(key) {
-        const data = localStorage.getItem(key);
-        return data ? JSON.parse(data) : [];
-      }
-      function saveData(key, data) {
-        localStorage.setItem(key, JSON.stringify(data));
-      }
-
-      // --- INITIALIZE USERS (Do NOT clear USERS_KEY so that accounts persist) ---
-      function initUsers() {
-        let users = loadData(USERS_KEY);
-        // Ensure the single admin account exists.
-        if (!users.find(u => u.username === 'admin')) {
-          users.push({ id: 1, username: "admin", password: "admin123", role: "admin" });
-        }
-        saveData(USERS_KEY, users);
-      }
-      initUsers();
-
-      // --- LOAD INITIAL DATA ARRAYS ---
-      let users = loadData(USERS_KEY);
-      let lines = loadData(LINES_KEY);
-      let bets = loadData(BETS_KEY);
-      let currentUser = null; // Holds the currently logged-in user.
-
-      // --- PERSISTENT LOGIN: Check if a current user is saved ---
-      const storedUser = localStorage.getItem('currentUser');
-      if (storedUser) {
-        currentUser = JSON.parse(storedUser);
-        if (currentUser.role === 'member') {
-          if (currentUser.balance === undefined) currentUser.balance = 0;
-          if (currentUser.lastClaimDate === undefined) currentUser.lastClaimDate = "";
-        }
-        if (currentUser.role === 'admin') {
-          document.getElementById('adminDashboard').classList.remove('hidden');
-          refreshAdminDashboard();
-        } else {
-          document.getElementById('memberDashboard').classList.remove('hidden');
-          refreshMemberDashboard();
-        }
-      }
-
-      // --- HELPER FUNCTIONS ---
-      function generateId(collection) {
-        if (collection.length === 0) return 1;
-        return Math.max(...collection.map(item => item.id)) + 1;
-      }
-      function getTodayDate() {
-        return new Date().toISOString().split('T')[0];
-      }
-      function saveCurrentUser() {
-        localStorage.setItem('currentUser', JSON.stringify(currentUser));
-      }
-      function removeCurrentUser() {
-        localStorage.removeItem('currentUser');
-      }
-
-      // --- SWITCH BETWEEN LOGIN AND SIGNUP ---
-      document.getElementById('showSignup').addEventListener('click', function() {
-        document.getElementById('loginSection').classList.add('hidden');
-        document.getElementById('signupSection').classList.remove('hidden');
-      });
-      document.getElementById('showLogin').addEventListener('click', function() {
-        document.getElementById('signupSection').classList.add('hidden');
-        document.getElementById('loginSection').classList.remove('hidden');
-      });
-
-      // --- LOGIN HANDLING ---
-      document.getElementById('loginForm').addEventListener('submit', function(e) {
-        e.preventDefault();
-        const username = document.getElementById('loginUsername').value.trim();
-        const password = document.getElementById('loginPassword').value.trim();
-        users = loadData(USERS_KEY);
-        const foundUser = users.find(u => u.username === username && u.password === password);
-        if (foundUser) {
-          if (foundUser.role === 'member') {
-            if (foundUser.balance === undefined) foundUser.balance = 0;
-            if (foundUser.lastClaimDate === undefined) foundUser.lastClaimDate = "";
-          }
-          currentUser = foundUser;
-          saveCurrentUser();
-          document.getElementById('loginMessage').textContent = "";
-          document.getElementById('loginSection').classList.add('hidden');
-          document.getElementById('signupSection').classList.add('hidden');
-          if (currentUser.role === 'admin') {
-            document.getElementById('adminDashboard').classList.remove('hidden');
-            refreshAdminDashboard();
-          } else {
-            document.getElementById('memberDashboard').classList.remove('hidden');
-            refreshMemberDashboard();
-          }
-        } else {
-          document.getElementById('loginMessage').textContent = "Invalid credentials.";
-        }
-      });
-
-      // --- SIGN UP HANDLING ---
-      document.getElementById('signupForm').addEventListener('submit', function(e) {
-        e.preventDefault();
-        const username = document.getElementById('signupUsername').value.trim();
-        const password = document.getElementById('signupPassword').value.trim();
-        const confirmPassword = document.getElementById('signupConfirm').value.trim();
-        const role = document.getElementById('signupRole').value;
-        
-        if (password !== confirmPassword) {
-          document.getElementById('signupMessage').textContent = "Passwords do not match.";
-          return;
-        }
-        users = loadData(USERS_KEY);
-        if (role === 'admin') {
-          document.getElementById('signupMessage').textContent = "Admin account already exists. Use admin login.";
-          return;
-        }
-        if (users.find(u => u.username === username)) {
-          document.getElementById('signupMessage').textContent = "Username already exists.";
-          return;
-        }
-        const newUser = { id: generateId(users), username, password, role, balance: 0, lastClaimDate: "" };
-        users.push(newUser);
-        saveData(USERS_KEY, users);
-        currentUser = newUser;
-        saveCurrentUser();
-        document.getElementById('signupMessage').textContent = "";
-        document.getElementById('signupSection').classList.add('hidden');
-        document.getElementById('memberDashboard').classList.remove('hidden');
-        refreshMemberDashboard();
-      });
-
-      // --- LOGOUT HANDLING ---
-      function logout() {
-        currentUser = null;
-        removeCurrentUser();
-        document.getElementById('loginSection').classList.remove('hidden');
-        document.getElementById('adminDashboard').classList.add('hidden');
-        document.getElementById('memberDashboard').classList.add('hidden');
-        document.getElementById('loginForm').reset();
-        document.getElementById('signupForm').reset();
-      }
-      document.getElementById('logoutBtnAdmin').addEventListener('click', logout);
-      document.getElementById('logoutBtnMember').addEventListener('click', logout);
-
-      // --- ADMIN DASHBOARD FUNCTIONS ---
-      function refreshAdminDashboard() {
-        const linesContainer = document.getElementById('linesContainer');
-        if (lines.length === 0) {
-          linesContainer.innerHTML = '<p>No lines available.</p>';
-        } else {
-          let html = '<table><tr><th>ID</th><th>Description</th><th>Option 1</th><th>Option 2</th><th>Correct Outcome</th><th>Actions</th></tr>';
-          lines.forEach(line => {
-            let outcomeText = (line.correctOption === null)
-                                ? 'Pending'
-                                : (line.correctOption === 1 ? line.option1 : line.option2);
-            html += `<tr>
-                      <td>${line.id}</td>
-                      <td>${line.description}</td>
-                      <td>${line.option1}</td>
-                      <td>${line.option2}</td>
-                      <td>${outcomeText}</td>
-                      <td>
-                        <button onclick="updateLineOutcome(${line.id})">Set Outcome</button>
-                        <button onclick="deleteLine(${line.id})">Delete</button>
-                      </td>
-                     </tr>`;
-          });
-          html += '</table>';
-          linesContainer.innerHTML = html;
-        }
-        saveData(LINES_KEY, lines);
-      }
-
-      document.getElementById('createLineForm').addEventListener('submit', function(e) {
-        e.preventDefault();
-        const description = document.getElementById('lineDescription').value.trim();
-        const option1 = document.getElementById('option1Text').value.trim();
-        const option2 = document.getElementById('option2Text').value.trim();
-        if (description && option1 && option2) {
-          const newLine = {
-            id: generateId(lines),
-            description,
-            option1,
-            option2,
-            correctOption: null
-          };
-          lines.push(newLine);
-          saveData(LINES_KEY, lines);
-          document.getElementById('createLineForm').reset();
-          refreshAdminDashboard();
-        }
-      });
-
-      window.updateLineOutcome = function(lineId) {
-        const line = lines.find(l => l.id === lineId);
-        if (line) {
-          const input = prompt("For line '" + line.description + "', enter the correct option number (1 for \"" + line.option1 + "\" or 2 for \"" + line.option2 + "\"):");
-          if (input && (input.trim() === "1" || input.trim() === "2")) {
-            line.correctOption = parseInt(input.trim());
-            saveData(LINES_KEY, lines);
-            refreshAdminDashboard();
-          } else {
-            alert("Invalid input. Please enter 1 or 2.");
-          }
-        }
-      };
-
-      window.deleteLine = function(lineId) {
-        if (confirm("Are you sure you want to delete line " + lineId + "?")) {
-          lines = lines.filter(l => l.id !== lineId);
-          saveData(LINES_KEY, lines);
-          refreshAdminDashboard();
-        }
-      };
-
-      document.getElementById('resolveBetsBtn').addEventListener('click', function() {
-        bets.forEach(bet => {
-          if (!bet.isSettled) {
-            let canResolve = true;
-            let allCorrect = true;
-            bet.selections.forEach(sel => {
-              const line = lines.find(l => l.id === sel.lineId);
-              if (!line || line.correctOption === null) {
-                canResolve = false;
-              } else if (sel.choice !== line.correctOption) {
-                allCorrect = false;
-              }
-            });
-            if (canResolve) {
-              bet.isWon = allCorrect;
-              const legs = bet.selections.length;
-              bet.payout = allCorrect ? bet.betAmount * (MULTIPLIERS[legs] || 1) : 0;
-              bet.isSettled = true;
-              bet.resolvedAt = new Date().toLocaleString();
-              if (allCorrect) {
-                let userObj = users.find(u => u.username === bet.user);
-                if (userObj) {
-                  userObj.balance = (userObj.balance || 0) + bet.payout;
-                }
-              }
-            }
-          }
-        });
-        saveData(BETS_KEY, bets);
-        saveData(USERS_KEY, users);
-        alert("Bets have been resolved.");
-        refreshMemberDashboard();
-      });
-
-      // --- MEMBER DASHBOARD FUNCTIONS ---
-      function refreshMemberDashboard() {
-        // Bonus & Balance Section
-        const bonusSection = document.getElementById('bonusSection');
-        const today = getTodayDate();
-        if (!currentUser.lastClaimDate || currentUser.lastClaimDate !== today) {
-          bonusSection.innerHTML = `Balance: $${Number(currentUser.balance).toFixed(2)} <button id="claimBonusBtn">Claim Daily Bonus ($5)</button>`;
-        } else {
-          bonusSection.innerHTML = `Balance: $${Number(currentUser.balance).toFixed(2)} <button id="claimBonusBtn" disabled>Daily Bonus Claimed</button>`;
-        }
-        const claimBtn = document.getElementById('claimBonusBtn');
-        if (claimBtn && !claimBtn.disabled) {
-          claimBtn.addEventListener('click', claimBonus);
-        }
-
-        // Available Lines
-        const availableDiv = document.getElementById('availableLines');
-        const availableLines = lines.filter(line => line.correctOption === null);
-        if (availableLines.length === 0) {
-          availableDiv.innerHTML = '<p>No available lines to bet on.</p>';
-        } else {
-          let html = '';
-          availableLines.forEach(line => {
-            html += `<div class="line-block">
-                      <strong>${line.description}</strong><br/>
-                      <label>
-                        <input type="radio" name="line_choice_${line.id}" value="1"> ${line.option1}
-                      </label>
-                      <label>
-                        <input type="radio" name="line_choice_${line.id}" value="2"> ${line.option2}
-                      </label>
-                    </div>`;
-          });
-          availableDiv.innerHTML = html;
-        }
-        
-        // Potential Payout Display
-        if (!document.getElementById('potentialPayoutDisplay')) {
-          const potPayout = document.createElement("p");
-          potPayout.id = "potentialPayoutDisplay";
-          potPayout.innerText = "Potential Payout: N/A";
-          availableDiv.parentNode.insertBefore(potPayout, document.getElementById('placeBetForm').querySelector('button[type="submit"]'));
-        }
-        document.getElementById('betAmount').addEventListener('input', updatePotentialPayout);
-        document.getElementById('availableLines').addEventListener('change', updatePotentialPayout);
-        updatePotentialPayout();
-
-        // Live Bets
-        const liveBetsContainer = document.getElementById('liveBetsContainer');
-        const liveBets = bets.filter(bet => bet.user === currentUser.username && !bet.isSettled);
-        if (liveBets.length === 0) {
-          liveBetsContainer.innerHTML = '<p>No live bets.</p>';
-        } else {
-          let html = '<table><tr><th>ID</th><th>Amount</th><th>Selections</th><th>Placed On</th></tr>';
-          liveBets.forEach(bet => {
-            let selectionsStr = bet.selections.map(sel => {
-              const line = lines.find(l => l.id === sel.lineId);
-              if (!line) return '';
-              const optionText = sel.choice === 1 ? line.option1 : line.option2;
-              return line.description + " (" + optionText + ")";
-            }).join(" | ");
-            html += `<tr>
-                      <td>${bet.id}</td>
-                      <td>${bet.betAmount}</td>
-                      <td>${selectionsStr}</td>
-                      <td>${bet.createdAt}</td>
-                     </tr>`;
-          });
-          html += '</table>';
-          liveBetsContainer.innerHTML = html;
-        }
-
-        // Past Bets
-        const pastBetsContainer = document.getElementById('pastBetsContainer');
-        const pastBets = bets.filter(bet => bet.user === currentUser.username && bet.isSettled);
-        if (pastBets.length === 0) {
-          pastBetsContainer.innerHTML = '<p>No past bets.</p>';
-        } else {
-          let html = '<table><tr><th>ID</th><th>Amount</th><th>Selections</th><th>Status</th><th>Payout</th><th>Resolved On</th></tr>';
-          pastBets.forEach(bet => {
-            let selectionsStr = bet.selections.map(sel => {
-              const line = lines.find(l => l.id === sel.lineId);
-              if (!line) return '';
-              const optionText = sel.choice === 1 ? line.option1 : line.option2;
-              return line.description + " (" + optionText + ")";
-            }).join(" | ");
-            html += `<tr>
-                      <td>${bet.id}</td>
-                      <td>${bet.betAmount}</td>
-                      <td>${selectionsStr}</td>
-                      <td>${bet.isWon ? 'Won' : 'Lost'}</td>
-                      <td>${bet.payout ? bet.payout : '-'}</td>
-                      <td>${bet.resolvedAt ? bet.resolvedAt : '-'}</td>
-                     </tr>`;
-          });
-          html += '</table>';
-          pastBetsContainer.innerHTML = html;
-        }
-      }
-
-      // Update potential payout based on entered bet amount and number of selections.
-      function updatePotentialPayout() {
-        const betAmtValue = document.getElementById('betAmount').value;
-        const betAmount = parseFloat(betAmtValue);
-        const availableDiv = document.getElementById('availableLines');
-        const checkedRadios = availableDiv.querySelectorAll('input[type="radio"]:checked');
-        const count = checkedRadios.length;
-        let potentialText = "Potential Payout: N/A";
-        if (!isNaN(betAmount) && betAmount > 0 && count >= 2 && count <= 6 && MULTIPLIERS[count]) {
-          const payout = betAmount * MULTIPLIERS[count];
-          potentialText = "Potential Payout: $" + payout.toFixed(2);
-        }
-        document.getElementById('potentialPayoutDisplay').innerText = potentialText;
-      }
-
-      // MEMBER BONUS & BALANCE: Claim Daily Bonus.
-      function claimBonus() {
-        const today = getTodayDate();
-        if (currentUser.lastClaimDate === today) {
-          alert("Daily bonus already claimed for today.");
-          return;
-        }
-        currentUser.balance = (currentUser.balance || 0) + 5;
-        currentUser.lastClaimDate = today;
-        for (let i = 0; i < users.length; i++) {
-          if (users[i].id === currentUser.id) {
-            users[i] = currentUser;
-            break;
-          }
-        }
-        saveData(USERS_KEY, users);
-        alert("Daily bonus of $5 claimed!");
-        refreshMemberDashboard();
-      }
-
-      // MEMBER: Place a Bet.
-      document.getElementById('placeBetForm').addEventListener('submit', function(e) {
-        e.preventDefault();
-        const betAmount = parseFloat(document.getElementById('betAmount').value);
-        if (betAmount > currentUser.balance) {
-          alert("Insufficient balance to place this bet.");
-          return;
-        }
-        let selections = [];
-        const availableLines = lines.filter(line => line.correctOption === null);
-        availableLines.forEach(line => {
-          const radios = document.getElementsByName("line_choice_" + line.id);
-          for (let radio of radios) {
-            if (radio.checked) {
-              selections.push({ lineId: line.id, choice: parseInt(radio.value) });
-            }
-          }
-        });
-        if (selections.length < 2) {
-          alert("Select options for at least 2 lines.");
-          return;
-        }
-        if (selections.length > 6) {
-          alert("You cannot select more than 6 lines.");
-          return;
-        }
-        currentUser.balance -= betAmount;
-        for (let i = 0; i < users.length; i++) {
-          if (users[i].id === currentUser.id) {
-            users[i] = currentUser;
-            break;
-          }
-        }
-        saveData(USERS_KEY, users);
-        const newBet = {
-          id: generateId(bets),
-          user: currentUser.username,
-          betAmount: betAmount,
-          selections: selections,
-          isSettled: false,
-          isWon: null,
-          payout: null,
-          createdAt: new Date().toLocaleString(),
-          resolvedAt: null
+      document.addEventListener("DOMContentLoaded", () => {
+        // 1) Firebase init
+        const cfg = {
+          apiKey: "...", authDomain: "...",
+          databaseURL: "...",
+          projectId: "...",
+          storageBucket: "...",
+          messagingSenderId: "...",
+          appId: "...",
+          measurementId: "..."
         };
-        bets.push(newBet);
-        saveData(BETS_KEY, bets);
-        document.getElementById('placeBetForm').reset();
-        refreshMemberDashboard();
-      });
+        firebase.initializeApp(cfg);
+        const db = firebase.database();
 
-      // --- AUTO UPDATE AVAILABLE LINES FROM STORAGE (For other tabs) ---
-      window.addEventListener("storage", function(e) {
-        if (e.key === LINES_KEY && currentUser && currentUser.role === 'member') {
-          refreshMemberDashboard();
+        // 2) Local user storage
+        const USERS_KEY = "betting_users";
+        function loadUsers(){ return JSON.parse(localStorage.getItem(USERS_KEY))||[]; }
+        function saveUsers(u){ localStorage.setItem(USERS_KEY, JSON.stringify(u)); }
+        function initUsers(){
+          let u=loadUsers();
+          if(!u.find(x=>x.username==="admin")) u.push({id:1,username:"admin",password:"admin123",role:"admin"});
+          saveUsers(u);
         }
+        initUsers();
+        let usersLocal=loadUsers(), currentUser=null;
+        if(localStorage.getItem("currentUser"))
+          currentUser=JSON.parse(localStorage.getItem("currentUser"));
+
+        function saveCurrent(){ localStorage.setItem("currentUser",JSON.stringify(currentUser)); }
+        function removeCurrent(){ localStorage.removeItem("currentUser"); }
+        function genId(arr){ return arr.length?Math.max(...arr.map(x=>x.id))+1:1; }
+        function today(){ return new Date().toISOString().split("T")[0]; }
+        function ensureBal(u){
+          if(u.role==="member"&&u.balance==null) u.balance=1000;
+          return u;
+        }
+        function updateUserBal(name,amt){
+          let ul=loadUsers(), usr=ul.find(x=>x.username===name);
+          if(usr){ usr.balance=(usr.balance||0)+amt;
+            if(currentUser&&currentUser.username===name){
+              currentUser.balance=usr.balance; saveCurrent();
+            }
+            saveUsers(ul);
+          }
+        }
+
+        // 3) UI toggle login/signup
+        document.getElementById("showSignup").onclick = ()=> {
+          loginSection.classList.add("hidden");
+          signupSection.classList.remove("hidden");
+        };
+        document.getElementById("showLogin").onclick = ()=> {
+          signupSection.classList.add("hidden");
+          loginSection.classList.remove("hidden");
+        };
+
+        // 4) Login/signup
+        loginForm.onsubmit = e=>{
+          e.preventDefault();
+          let un=loginUsername.value.trim(),
+              pw=loginPassword.value.trim(),
+              ul=loadUsers(),
+              u=ul.find(x=>x.username===un&&x.password===pw);
+          if(u){
+            if(u.role==="member") u=ensureBal(u);
+            currentUser=u; saveCurrent();
+            loginSection.classList.add("hidden");
+            signupSection.classList.add("hidden");
+            if(u.role==="admin") adminDashboard.classList.remove("hidden");
+            else memberDashboard.classList.remove("hidden");
+          } else loginMessage.textContent="Invalid credentials.";
+        };
+        signupForm.onsubmit = e=>{
+          e.preventDefault();
+          let un=signupUsername.value.trim(),
+              pw=signupPassword.value.trim(),
+              cp=signupConfirm.value.trim(),
+              role=signupRole.value,
+              ul=loadUsers();
+          if(pw!==cp){ signupMessage.textContent="Passwords do not match."; return; }
+          if(role==="admin"){ signupMessage.textContent="Admin exists."; return;}
+          if(ul.find(x=>x.username===un)){ signupMessage.textContent="Username exists.";return;}
+          let nu={id:genId(ul),username:un,password:pw,role:"member",balance:1000,lastClaimDate:""};
+          ul.push(nu); saveUsers(ul);
+          currentUser=nu; saveCurrent();
+          signupSection.classList.add("hidden");
+          memberDashboard.classList.remove("hidden");
+        };
+        logoutBtnAdmin.onclick = logoutBtnMember.onclick = ()=>{
+          removeCurrent();
+          currentUser=null;
+          loginSection.classList.remove("hidden");
+          adminDashboard.classList.add("hidden");
+          memberDashboard.classList.add("hidden");
+          loginForm.reset(); signupForm.reset();
+        };
+
+        // 5) Firebase helpers
+        async function addLine(line){
+          let r=db.ref("lines").push();
+          await r.set(line);
+        }
+        async function addBet(bet){
+          let r=db.ref("bets").push();
+          await r.set(bet);
+        }
+        async function evalBets(){
+          for(let bet of bets){
+            if(!bet.isSettled){
+              let allSet=true, res=[];
+              for(let s of bet.selections){
+                let ln=lines.find(x=>x.id===s.lineId);
+                if(!ln||ln.correctOption==null){ allSet=false; break; }
+                res.push(s.choice===ln.correctOption);
+              }
+              if(allSet&&bet.selections.length){
+                bet.isSettled=true;
+                bet.resolvedAt=new Date().toLocaleString();
+                bet.results=res;
+                bet.isWon=res.every(x=>x);
+                if(bet.isWon){
+                  let m={2:3,3:7,4:10,5:12,6:25}[bet.selections.length]||1;
+                  bet.payout=bet.betAmount*m;
+                  updateUserBal(bet.user,bet.payout);
+                } else bet.payout=0;
+                await db.ref("bets/"+bet.id).update(bet);
+              }
+            }
+          }
+          refreshPastPlaysAdminUI();
+        }
+        resolveBetsBtn.onclick = ()=>evalBets();
+
+        // 6) Real-time listeners
+        db.ref("lines").on("value",snap=>{
+          let d=snap.val()||{};
+          lines=Object.keys(d).map(k=>({id:k,...d[k]}));
+          evalBets();
+          if(currentUser){
+            if(currentUser.role==="admin"){
+              refreshAdminDashboardUI();
+              refreshLivePlaysAdminUI();
+            }
+            else refreshMemberDashboardUI();
+          }
+        });
+        db.ref("bets").on("value",snap=>{
+          let d=snap.val()||{};
+          bets=Object.keys(d).map(k=>({id:k,...d[k]}));
+          if(currentUser){
+            if(currentUser.role==="admin"){
+              refreshLivePlaysAdminUI();
+              refreshPastPlaysAdminUI();
+            } else refreshMemberDashboardUI();
+          }
+        });
+
+        // 7) Admin UI
+        function refreshAdminDashboardUI(){
+          if(!lines.length){ linesContainer.innerHTML="<p>No lines.</p>"; return; }
+          let html=`<table><tr>
+            <th>ID</th><th>Desc</th><th>Opt1</th><th>Opt2</th><th>Status</th><th>Actions</th>
+          </tr>`;
+          for(let l of lines){
+            let st = l.correctOption==null
+              ?"Pending": (l.correctOption===1?l.option1:l.option2);
+            html+=`<tr>
+              <td>${l.id}</td>
+              <td>${l.description}</td>
+              <td>${l.option1}</td>
+              <td>${l.option2}</td>
+              <td>${st}</td>
+              <td>
+                <button onclick="updateLineOutcome('${l.id}')">Set</button>
+                <button onclick="deleteLine('${l.id}')">Del</button>
+              </td>
+            </tr>`;
+          }
+          html+="</table>";
+          linesContainer.innerHTML=html;
+        }
+        function refreshLivePlaysAdminUI(){
+          if(!bets.filter(b=>!b.isSettled).length){
+            livePlaysContainer.innerHTML="<p>No live plays.</p>"; return;
+          }
+          let html=`<table><tr>
+            <th>ID</th><th>User</th><th>Amt</th><th>Sels</th><th>When</th>
+          </tr>`;
+          for(let b of bets.filter(b=>!b.isSettled)){
+            let s=b.selections.map(s=>{
+              let ln=lines.find(x=>x.id===s.lineId);
+              return ln? `${ln.description} (${s.choice===1?ln.option1:ln.option2})`: "";
+            }).join(" | ");
+            html+=`<tr>
+              <td>${b.id}</td><td>${b.user}</td><td>${b.betAmount}</td>
+              <td>${s}</td><td>${b.createdAt}</td>
+            </tr>`;
+          }
+          html+="</table>";
+          livePlaysContainer.innerHTML=html;
+        }
+        function refreshPastPlaysAdminUI(){
+          if(!bets.filter(b=>b.isSettled).length){
+            pastPlaysContainer.innerHTML="<p>No past plays.</p>"; return;
+          }
+          let html=`<table><tr>
+            <th>ID</th><th>User</th><th>Amt</th><th>Res</th><th>Status</th><th>Payout</th><th>When</th>
+          </tr>`;
+          for(let b of bets.filter(b=>b.isSettled)){
+            let r = (b.results||[]).map(x=>x?"✓":"✗").join(" ");
+            html+=`<tr>
+              <td>${b.id}</td><td>${b.user}</td><td>${b.betAmount}</td>
+              <td>${r}</td>
+              <td>${b.isWon?"Won":"Lost"}</td>
+              <td>${b.payout||"-"}</td>
+              <td>${b.resolvedAt}</td>
+            </tr>`;
+          }
+          html+="</table>";
+          pastPlaysContainer.innerHTML=html;
+        }
+        window.updateLineOutcome = async id=>{
+          let refL=db.ref("lines/"+id), snap=await refL.once("value"), l=snap.val();
+          if(!l) return;
+          let inp=prompt(`For "${l.description}", enter 1 or 2:`).trim();
+          if(inp==="1"||inp==="2") await refL.update({correctOption:parseInt(inp)});
+        };
+        window.deleteLine = async id=>{
+          if(confirm("Delete line "+id+"?")) await db.ref("lines/"+id).set(null);
+        };
+        createLineForm.onsubmit = async e=>{
+          e.preventDefault();
+          let d=lineDescription.value.trim(),
+              o1=option1Text.value.trim(),
+              o2=option2Text.value.trim();
+          if(!d||!o1||!o2){ alert("Fill all."); return; }
+          await addLine({description:d,option1:o1,option2:o2,correctOption:null});
+          createLineForm.reset();
+        };
+
+        // 8) Member UI
+        document.getElementById("betAmount").addEventListener("input", updatePotentialPayout);
+        window.togglePending = (lid,ch)=>{
+          if(pendingSelections[lid]===ch) delete pendingSelections[lid];
+          else pendingSelections[lid]=ch;
+          refreshMemberDashboardUI();
+        };
+        function refreshMemberDashboardUI(){
+          // Bonus
+          let bs=bonusSection, td=today();
+          if(!currentUser.lastClaimDate||currentUser.lastClaimDate!==td){
+            bs.innerHTML=`Balance: $${currentUser.balance.toFixed(2)}
+              <button id="claimBonusBtn">Claim $5</button>`;
+          } else {
+            bs.innerHTML=`Balance: $${currentUser.balance.toFixed(2)}
+              <button disabled>Claimed</button>`;
+          }
+          let cb=document.getElementById("claimBonusBtn");
+          if(cb&&!cb.disabled) cb.onclick=claimBonus;
+
+          // Lines
+          let av=availableLines, ol=lines.filter(x=>x.correctOption==null);
+          if(!ol.length) av.innerHTML="<p>No lines.</p>";
+          else {
+            let h="";
+            for(let l of ol){
+              let c1=pendingSelections[l.id]===1?"option-btn selected":"option-btn",
+                  c2=pendingSelections[l.id]===2?"option-btn selected":"option-btn";
+              h+=`<div class="line-block">
+                    <strong>${l.description}</strong><br/>
+                    <button class="${c1}" onclick="togglePending('${l.id}',1)">${l.option1}</button>
+                    <button class="${c2}" onclick="togglePending('${l.id}',2)">${l.option2}</button>
+                  </div>`;
+            }
+            av.innerHTML=h;
+          }
+          updatePotentialPayout();
+
+          // Live bets
+          let lb=liveBetsContainer, myLive=bets.filter(b=>b.user===currentUser.username&&!b.isSettled);
+          if(!myLive.length) lb.innerHTML="<p>No live bets.</p>";
+          else {
+            let h=`<table><tr><th>ID</th><th>Amt</th><th>Sels</th><th>On</th></tr>`;
+            for(let b of myLive){
+              let s=b.selections.map(s=>{
+                let ln=lines.find(x=>x.id===s.lineId);
+                return ln?`${ln.description} (${s.choice===1?ln.option1:ln.option2})`:"";
+              }).join(" | ");
+              h+=`<tr><td>${b.id}</td><td>${b.betAmount}</td><td>${s}</td><td>${b.createdAt}</td></tr>`;
+            }
+            h+="</table>";
+            lb.innerHTML=h;
+          }
+          // Past bets
+          let pb=pastBetsContainer, myPast=bets.filter(b=>b.user===currentUser.username&&b.isSettled);
+          if(!myPast.length) pb.innerHTML="<p>No past bets.</p>";
+          else {
+            let h=`<table><tr><th>ID</th><th>Amt</th><th>Res</th><th>Status</th><th>Pay</th><th>On</th></tr>`;
+            for(let b of myPast){
+              let r=(b.results||[]).map(x=>x?"✓":"✗").join(" ");
+              h+=`<tr>
+                    <td>${b.id}</td>
+                    <td>${b.betAmount}</td>
+                    <td>${r}</td>
+                    <td>${b.isWon?"Won":"Lost"}</td>
+                    <td>${b.payout||"-"}</td>
+                    <td>${b.resolvedAt}</td>
+                  </tr>`;
+            }
+            h+="</table>";
+            pb.innerHTML=h;
+          }
+        }
+        function updatePotentialPayout(){
+          let cnt=Object.keys(pendingSelections).length,
+              amt=parseFloat(betAmount.value),
+              txt="Potential Payout: N/A";
+          if(!isNaN(amt)&&amt>0&&cnt>=2&&cnt<=6&&MULTIPLIERS[cnt]){
+            txt="Potential Payout: $"+(amt*MULTIPLIERS[cnt]).toFixed(2);
+          }
+          potentialPayoutDisplay.innerText=txt;
+        }
+        function claimBonus(){
+          let td=today();
+          if(currentUser.lastClaimDate===td){ alert("Already claimed"); return; }
+          currentUser.balance+=5;
+          currentUser.lastClaimDate=td;
+          usersLocal=loadUsers().map(u=>u.username===currentUser.username?currentUser:u);
+          saveUsers(usersLocal);
+          alert("$5 claimed");
+          refreshMemberDashboardUI();
+        }
+        placeBetForm.onsubmit = async e=>{
+          e.preventDefault();
+          let amt=parseFloat(betAmount.value);
+          if(amt>currentUser.balance){ alert("Insufficient"); return; }
+          let sels=Object.keys(pendingSelections).map(id=>({lineId:id,choice:pendingSelections[id]}));
+          if(sels.length<2){ alert("Select >=2"); return; }
+          if(sels.length>6){ alert("Max 6"); return; }
+          // Deduct
+          currentUser.balance-=amt;
+          usersLocal=loadUsers().map(u=>u.username===currentUser.username?currentUser:u);
+          saveUsers(usersLocal);
+          // Push bet
+          await addBet({
+            betAmount:amt,
+            user:currentUser.username,
+            selections:sels,
+            isSettled:false,
+            isWon:null,
+            payout:null,
+            createdAt:new Date().toLocaleString(),
+            resolvedAt:null
+          });
+          pendingSelections={};
+          placeBetForm.reset();
+          refreshMemberDashboardUI();
+        };
+
+        // Auto-refresh member UI when no pending picks
+        setInterval(()=>{
+          if(currentUser&&currentUser.role==="member"&&Object.keys(pendingSelections).length===0){
+            refreshMemberDashboardUI();
+          }
+        },5000);
       });
-    });
-  </script>
-</body>
-</html>
 
-
-  <script>
-    
-  </script>
-</body>
+      // Multipliers
+      const MULTIPLIERS = {2:3,3:7,4:10,5:12,6:25};
+    </script>
+  </body>
 </html>
