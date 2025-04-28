@@ -1,311 +1,566 @@
 <!DOCTYPE html>
 <html>
+
+<html>
 <head>
-  <title>Fake Sportsbook with Login</title>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>JSFiddle f1Lvh2ra</title>
+
   <style>
-    body { font-family: Arial; margin: 20px; }
-    .bet-line { margin-bottom: 20px; border: 1px solid #ccc; padding: 10px; }
-    .bet-line h3 { margin: 0 0 10px 0; }
-    .parlay, .history, .login { background: #f0f8ff; padding: 10px; margin-top: 20px; border: 1px solid #aaa; }
-    button { margin: 3px; }
-    #payoutPreview { font-weight: bold; margin-top: 10px; }
+    
+  </style>
+
+  
+</head>
+<body>
+  <!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Fake Betting Website</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 20px; }
+    .hidden { display: none; }
+    h2, h3 { color: #333; }
+    input, button, select { margin: 5px; padding: 5px; }
+    .container { margin-bottom: 20px; }
+    table, th, td { border: 1px solid #ccc; border-collapse: collapse; padding: 5px; }
+    a { cursor: pointer; color: blue; text-decoration: underline; }
+    .line-block { margin-bottom: 10px; padding: 5px; border: 1px solid #ddd; }
   </style>
 </head>
 <body>
-  <h1>Fake Sportsbook (Multi-user Parlay Edition)</h1>
-
-  <!-- Login Options -->
-  <div class="login">
-    <button onclick="showLoginForm('member')">Member Login</button>
-    <button onclick="showLoginForm('admin')">Admin Login</button>
+  <!-- Login Section -->
+  <div id="loginSection" class="container">
+    <h2>Login</h2>
+    <form id="loginForm">
+      <label for="loginUsername">Username: </label>
+      <input type="text" id="loginUsername" required /><br />
+      <label for="loginPassword">Password: </label>
+      <input type="password" id="loginPassword" required /><br />
+      <button type="submit">Login</button>
+    </form>
+    <p id="loginMessage" style="color:red;"></p>
+    <p>Don't have an account? <a id="showSignup">Sign Up</a></p>
   </div>
 
-  <!-- Member Login Form -->
-  <div id="memberLogin" style="display:none">
-    <input type="text" id="usernameInput" placeholder="Enter your username">
-    <button onclick="loginUser('member')">Log In</button>
+  <!-- Sign Up Section -->
+  <div id="signupSection" class="container hidden">
+    <h2>Sign Up</h2>
+    <form id="signupForm">
+      <label for="signupUsername">Username: </label>
+      <input type="text" id="signupUsername" required /><br />
+      <label for="signupPassword">Password: </label>
+      <input type="password" id="signupPassword" required /><br />
+      <label for="signupConfirm">Confirm Password: </label>
+      <input type="password" id="signupConfirm" required /><br />
+      <label for="signupRole">Role: </label>
+      <select id="signupRole">
+        <option value="member">Member</option>
+        <option value="admin">Admin</option>
+      </select><br />
+      <button type="submit">Sign Up</button>
+    </form>
+    <p id="signupMessage" style="color:red;"></p>
+    <p>Already have an account? <a id="showLogin">Log In</a></p>
   </div>
 
-  <!-- Admin Login Form -->
-  <div id="adminLogin" style="display:none">
-    <input type="text" id="adminUsernameInput" placeholder="Enter admin username">
-    <input type="password" id="adminPasswordInput" placeholder="Enter admin password">
-    <button onclick="loginUser('admin')">Log In</button>
+  <!-- Admin Dashboard -->
+  <div id="adminDashboard" class="container hidden">
+    <h2>Admin Dashboard</h2>
+    <button id="logoutBtnAdmin">Logout</button>
+    <h3>Manage Lines</h3>
+    <!-- Admin creates lines by entering a description and two option texts -->
+    <form id="createLineForm">
+      <input type="text" id="lineDescription" placeholder="Line Description (e.g., Dylan Points)" required />
+      <input type="text" id="option1Text" placeholder="Option 1 (e.g., Over 20 Points)" required />
+      <input type="text" id="option2Text" placeholder="Option 2 (e.g., Under 20 Points)" required />
+      <button type="submit">Create Line</button>
+    </form>
+    <div id="linesContainer"></div>
+    <h3>Resolve Bets</h3>
+    <button id="resolveBetsBtn">Resolve Unsettled Bets</button>
   </div>
 
-  <div id="app" style="display:none">
-    <p><strong>Balance:</strong> $<span id="balanceDisplay">0</span></p>
-
-    <h2>Create New Bet (Admin Only)</h2>
-    <input type="text" id="lineName" placeholder="e.g. Dylan over 20.5 points">
-    <input type="text" id="optionA" placeholder="Option A">
-    <input type="text" id="optionB" placeholder="Option B">
-    <button onclick="createBetLine()">Create Bet</button>
-
-    <h2>Active Betting Lines</h2>
-    <div id="lines"></div>
-
-    <div class="parlay">
-      <h3>Parlay Cart</h3>
-      <ul id="parlayList"></ul>
-      <p id="payoutPreview">Potential Payout: N/A</p>
-      <button onclick="placeParlay()">Place Parlay Bet</button>
-    </div>
-
-    <div class="history">
-      <h3>Your Parlay History</h3>
-      <div id="parlayHistoryList"></div>
-    </div>
+  <!-- Member Dashboard -->
+  <div id="memberDashboard" class="container hidden">
+    <h2>Member Dashboard</h2>
+    <button id="logoutBtnMember">Logout</button>
+    <!-- Bonus & Balance Section -->
+    <div id="bonusSection" style="margin-bottom: 20px;"></div>
+    <h3>Place a New Bet</h3>
+    <form id="placeBetForm">
+      <label>Bet Amount: </label>
+      <input type="number" step="0.01" id="betAmount" required /><br />
+      <p>Select between 2 and 6 Lines by choosing one option per line:</p>
+      <div id="availableLines"></div>
+      <p id="potentialPayoutDisplay">Potential Payout: N/A</p>
+      <button type="submit">Place Bet</button>
+    </form>
+    <h3>Live Bets</h3>
+    <div id="liveBetsContainer"></div>
+    <h3>Past Bets</h3>
+    <div id="pastBetsContainer"></div>
   </div>
-
-  <!-- Display Current User -->
-  <div id="currentUserDisplay" style="margin-top: 20px;"></div>
 
   <script>
-    let users = {}; // { username: { balance: number, parlays: [] } }
-    let currentUser = null;
-    let isAdmin = false;
+    document.addEventListener('DOMContentLoaded', function() {
+      // --- STORAGE KEYS AND MULTIPLIERS ---
+      const USERS_KEY = 'betting_users';
+      const LINES_KEY = 'betting_lines';
+      const BETS_KEY = 'betting_bets';
+      // Multipliers: 2 legs = 3x, 3 legs = 7x, 4 legs = 10x, 5 legs = 12x, 6 legs = 25x.
+      const MULTIPLIERS = { 2: 3, 3: 7, 4: 10, 5: 12, 6: 25 };
 
-    let lines = JSON.parse(localStorage.getItem("lines")) || [];
-    let parlayCart = [];
-
-    // Show the correct login form based on the type (admin or member)
-    function showLoginForm(type) {
-      console.log("Showing login form for type:", type);
-      if (type === 'member') {
-        document.getElementById("memberLogin").style.display = 'block';
-        document.getElementById("adminLogin").style.display = 'none';
-      } else if (type === 'admin') {
-        document.getElementById("adminLogin").style.display = 'block';
-        document.getElementById("memberLogin").style.display = 'none';
+      // --- DATA PERSISTENCE FUNCTIONS ---
+      function loadData(key) {
+        const data = localStorage.getItem(key);
+        return data ? JSON.parse(data) : [];
       }
-    }
+      function saveData(key, data) {
+        localStorage.setItem(key, JSON.stringify(data));
+      }
 
-    // Login function for members and admins
-    function loginUser(type) {
-      console.log("Logging in as:", type);
-      if (type === 'member') {
-        const username = document.getElementById("usernameInput").value.trim();
-        if (!username) return alert("Please enter a username");
-        if (!users[username]) {
-          users[username] = { balance: 1000, parlays: [] };
+      // --- INITIALIZE USERS (Do NOT clear USERS_KEY so that accounts persist) ---
+      function initUsers() {
+        let users = loadData(USERS_KEY);
+        // Ensure the single admin account exists.
+        if (!users.find(u => u.username === 'admin')) {
+          users.push({ id: 1, username: "admin", password: "admin123", role: "admin" });
         }
-        currentUser = username;
-        isAdmin = false;
-        console.log("Logged in as member:", username);
-        document.getElementById("currentUserDisplay").innerText = `Logged in as: ${username}`;
-        document.getElementById("app").style.display = 'block';
-        renderLines();
-        updateBalanceDisplay();
-        renderParlayHistory();
-        parlayCart = [];
-        renderParlay();
-      } else if (type === 'admin') {
-        const adminUsername = document.getElementById("adminUsernameInput").value;
-        const adminPassword = document.getElementById("adminPasswordInput").value;
+        saveData(USERS_KEY, users);
+      }
+      initUsers();
 
-        const adminUsernameValid = "admin"; // Set your admin username
-        const adminPasswordValid = "admin123"; // Set your admin password
+      // --- LOAD INITIAL DATA ARRAYS ---
+      let users = loadData(USERS_KEY);
+      let lines = loadData(LINES_KEY);
+      let bets = loadData(BETS_KEY);
+      let currentUser = null; // Holds the currently logged-in user.
 
-        if (adminUsername === adminUsernameValid && adminPassword === adminPasswordValid) {
-          isAdmin = true;
-          console.log("Logged in as admin:", adminUsername);
-          document.getElementById("currentUserDisplay").innerText = `Logged in as Admin`;
-          document.getElementById("app").style.display = 'block';
-          renderLines();
-          updateBalanceDisplay();
-          renderParlayHistory();
-          parlayCart = [];
-          renderParlay();
+      // --- PERSISTENT LOGIN: Check if a current user is saved ---
+      const storedUser = localStorage.getItem('currentUser');
+      if (storedUser) {
+        currentUser = JSON.parse(storedUser);
+        if (currentUser.role === 'member') {
+          if (currentUser.balance === undefined) currentUser.balance = 0;
+          if (currentUser.lastClaimDate === undefined) currentUser.lastClaimDate = "";
+        }
+        if (currentUser.role === 'admin') {
+          document.getElementById('adminDashboard').classList.remove('hidden');
+          refreshAdminDashboard();
         } else {
-          alert("Invalid admin credentials");
+          document.getElementById('memberDashboard').classList.remove('hidden');
+          refreshMemberDashboard();
         }
       }
-    }
 
-    function updateBalanceDisplay() {
-      document.getElementById("balanceDisplay").innerText = users[currentUser].balance;
-    }
-
-    function getParlayMultiplier(legCount) {
-      if (legCount === 2) return 3;
-      if (legCount === 3) return 6;
-      if (legCount === 4) return 10;
-      if (legCount === 5) return 15;
-      if (legCount >= 6) return 25;
-      return 2;
-    }
-
-    function createBetLine() {
-      if (!isAdmin) {
-        console.log("Not an admin, cannot create bet line");
-        return alert("Only admins can create new bet lines.");
+      // --- HELPER FUNCTIONS ---
+      function generateId(collection) {
+        if (collection.length === 0) return 1;
+        return Math.max(...collection.map(item => item.id)) + 1;
+      }
+      function getTodayDate() {
+        return new Date().toISOString().split('T')[0];
+      }
+      function saveCurrentUser() {
+        localStorage.setItem('currentUser', JSON.stringify(currentUser));
+      }
+      function removeCurrentUser() {
+        localStorage.removeItem('currentUser');
       }
 
-      const name = document.getElementById("lineName").value;
-      const optionA = document.getElementById("optionA").value;
-      const optionB = document.getElementById("optionB").value;
-
-      if (!name || !optionA || !optionB) {
-        console.log("Missing input fields");
-        return alert("Fill all fields!");
-      }
-
-      // Create a new bet line
-      const line = {
-        id: Date.now(),
-        name,
-        optionA,
-        optionB,
-        result: null
-      };
-
-      console.log("Creating bet line:", line);
-
-      // Add it to the lines array
-      lines.push(line);
-
-      // Save to localStorage
-      localStorage.setItem("lines", JSON.stringify(lines));
-
-      // Check if the lines array is being updated
-      console.log("Updated lines:", lines);
-
-      // Render the new lines to the page
-      renderLines();
-    }
-
-    function addToParlay(lineId, side) {
-      const existing = parlayCart.find(p => p.lineId === lineId);
-      if (existing) return alert("Already added this line to parlay!");
-      const line = lines.find(l => l.id === lineId);
-      parlayCart.push({ lineId, side, line });
-      renderParlay();
-    }
-
-    function removeFromParlay(index) {
-      parlayCart.splice(index, 1);
-      renderParlay();
-    }
-
-    function renderParlay() {
-      const list = document.getElementById("parlayList");
-      list.innerHTML = "";
-      parlayCart.forEach((pick, index) => {
-        const sideName = pick.side === 'A' ? pick.line.optionA : pick.line.optionB;
-        const li = document.createElement("li");
-        li.innerHTML = `${pick.line.name}: ${sideName} <button onclick="removeFromParlay(${index})">❌</button>`;
-        list.appendChild(li);
+      // --- SWITCH BETWEEN LOGIN AND SIGNUP ---
+      document.getElementById('showSignup').addEventListener('click', function() {
+        document.getElementById('loginSection').classList.add('hidden');
+        document.getElementById('signupSection').classList.remove('hidden');
       });
-      const payoutText = parlayCart.length >= 2
-        ? `${getParlayMultiplier(parlayCart.length)}x`
-        : "N/A (need at least 2 picks)";
-      document.getElementById("payoutPreview").innerText = `Potential Payout: ${payoutText}`;
-    }
+      document.getElementById('showLogin').addEventListener('click', function() {
+        document.getElementById('signupSection').classList.add('hidden');
+        document.getElementById('loginSection').classList.remove('hidden');
+      });
 
-    function placeParlay() {
-      if (parlayCart.length < 2) return alert("Add at least 2 picks for a parlay!");
-      const amount = parseInt(prompt("Bet amount?"));
-      if (isNaN(amount) || amount <= 0) return;
-      if (amount > users[currentUser].balance) return alert("Insufficient balance");
+      // --- LOGIN HANDLING ---
+      document.getElementById('loginForm').addEventListener('submit', function(e) {
+        e.preventDefault();
+        const username = document.getElementById('loginUsername').value.trim();
+        const password = document.getElementById('loginPassword').value.trim();
+        users = loadData(USERS_KEY);
+        const foundUser = users.find(u => u.username === username && u.password === password);
+        if (foundUser) {
+          if (foundUser.role === 'member') {
+            if (foundUser.balance === undefined) foundUser.balance = 0;
+            if (foundUser.lastClaimDate === undefined) foundUser.lastClaimDate = "";
+          }
+          currentUser = foundUser;
+          saveCurrentUser();
+          document.getElementById('loginMessage').textContent = "";
+          document.getElementById('loginSection').classList.add('hidden');
+          document.getElementById('signupSection').classList.add('hidden');
+          if (currentUser.role === 'admin') {
+            document.getElementById('adminDashboard').classList.remove('hidden');
+            refreshAdminDashboard();
+          } else {
+            document.getElementById('memberDashboard').classList.remove('hidden');
+            refreshMemberDashboard();
+          }
+        } else {
+          document.getElementById('loginMessage').textContent = "Invalid credentials.";
+        }
+      });
 
-      users[currentUser].balance -= amount;
+      // --- SIGN UP HANDLING ---
+      document.getElementById('signupForm').addEventListener('submit', function(e) {
+        e.preventDefault();
+        const username = document.getElementById('signupUsername').value.trim();
+        const password = document.getElementById('signupPassword').value.trim();
+        const confirmPassword = document.getElementById('signupConfirm').value.trim();
+        const role = document.getElementById('signupRole').value;
+        
+        if (password !== confirmPassword) {
+          document.getElementById('signupMessage').textContent = "Passwords do not match.";
+          return;
+        }
+        users = loadData(USERS_KEY);
+        if (role === 'admin') {
+          document.getElementById('signupMessage').textContent = "Admin account already exists. Use admin login.";
+          return;
+        }
+        if (users.find(u => u.username === username)) {
+          document.getElementById('signupMessage').textContent = "Username already exists.";
+          return;
+        }
+        const newUser = { id: generateId(users), username, password, role, balance: 0, lastClaimDate: "" };
+        users.push(newUser);
+        saveData(USERS_KEY, users);
+        currentUser = newUser;
+        saveCurrentUser();
+        document.getElementById('signupMessage').textContent = "";
+        document.getElementById('signupSection').classList.add('hidden');
+        document.getElementById('memberDashboard').classList.remove('hidden');
+        refreshMemberDashboard();
+      });
 
-      const parlay = {
-        picks: JSON.parse(JSON.stringify(parlayCart)),
-        amount,
-        resolved: false,
-        result: "Pending"
-      };
-      users[currentUser].parlays.push(parlay);
-      parlayCart = [];
-      renderParlay();
-      updateBalanceDisplay();
-      renderParlayHistory();
-    }
+      // --- LOGOUT HANDLING ---
+      function logout() {
+        currentUser = null;
+        removeCurrentUser();
+        document.getElementById('loginSection').classList.remove('hidden');
+        document.getElementById('adminDashboard').classList.add('hidden');
+        document.getElementById('memberDashboard').classList.add('hidden');
+        document.getElementById('loginForm').reset();
+        document.getElementById('signupForm').reset();
+      }
+      document.getElementById('logoutBtnAdmin').addEventListener('click', logout);
+      document.getElementById('logoutBtnMember').addEventListener('click', logout);
 
-    function declareWinner(lineId, winner) {
-      if (!isAdmin) return alert("Only admins can declare winners.");
-      const line = lines.find(l => l.id === lineId);
-      if (line.result) return alert("Already resolved");
-      line.result = winner;
-      for (const user in users) {
-        users[user].parlays.forEach(parlay => {
-          if (parlay.resolved) return;
-          const allResolved = parlay.picks.every(p => {
-            const l = lines.find(l => l.id === p.lineId);
-            return l.result !== null;
+      // --- ADMIN DASHBOARD FUNCTIONS ---
+      function refreshAdminDashboard() {
+        const linesContainer = document.getElementById('linesContainer');
+        if (lines.length === 0) {
+          linesContainer.innerHTML = '<p>No lines available.</p>';
+        } else {
+          let html = '<table><tr><th>ID</th><th>Description</th><th>Option 1</th><th>Option 2</th><th>Correct Outcome</th><th>Actions</th></tr>';
+          lines.forEach(line => {
+            let outcomeText = (line.correctOption === null)
+                                ? 'Pending'
+                                : (line.correctOption === 1 ? line.option1 : line.option2);
+            html += `<tr>
+                      <td>${line.id}</td>
+                      <td>${line.description}</td>
+                      <td>${line.option1}</td>
+                      <td>${line.option2}</td>
+                      <td>${outcomeText}</td>
+                      <td>
+                        <button onclick="updateLineOutcome(${line.id})">Set Outcome</button>
+                        <button onclick="deleteLine(${line.id})">Delete</button>
+                      </td>
+                     </tr>`;
           });
-          if (allResolved) {
-            const allCorrect = parlay.picks.every(p => {
-              const l = lines.find(l => l.id === p.lineId);
-              return l.result === p.side;
+          html += '</table>';
+          linesContainer.innerHTML = html;
+        }
+        saveData(LINES_KEY, lines);
+      }
+
+      document.getElementById('createLineForm').addEventListener('submit', function(e) {
+        e.preventDefault();
+        const description = document.getElementById('lineDescription').value.trim();
+        const option1 = document.getElementById('option1Text').value.trim();
+        const option2 = document.getElementById('option2Text').value.trim();
+        if (description && option1 && option2) {
+          const newLine = {
+            id: generateId(lines),
+            description,
+            option1,
+            option2,
+            correctOption: null
+          };
+          lines.push(newLine);
+          saveData(LINES_KEY, lines);
+          document.getElementById('createLineForm').reset();
+          refreshAdminDashboard();
+        }
+      });
+
+      window.updateLineOutcome = function(lineId) {
+        const line = lines.find(l => l.id === lineId);
+        if (line) {
+          const input = prompt("For line '" + line.description + "', enter the correct option number (1 for \"" + line.option1 + "\" or 2 for \"" + line.option2 + "\"):");
+          if (input && (input.trim() === "1" || input.trim() === "2")) {
+            line.correctOption = parseInt(input.trim());
+            saveData(LINES_KEY, lines);
+            refreshAdminDashboard();
+          } else {
+            alert("Invalid input. Please enter 1 or 2.");
+          }
+        }
+      };
+
+      window.deleteLine = function(lineId) {
+        if (confirm("Are you sure you want to delete line " + lineId + "?")) {
+          lines = lines.filter(l => l.id !== lineId);
+          saveData(LINES_KEY, lines);
+          refreshAdminDashboard();
+        }
+      };
+
+      document.getElementById('resolveBetsBtn').addEventListener('click', function() {
+        bets.forEach(bet => {
+          if (!bet.isSettled) {
+            let canResolve = true;
+            let allCorrect = true;
+            bet.selections.forEach(sel => {
+              const line = lines.find(l => l.id === sel.lineId);
+              if (!line || line.correctOption === null) {
+                canResolve = false;
+              } else if (sel.choice !== line.correctOption) {
+                allCorrect = false;
+              }
             });
-            if (allCorrect) {
-              const mult = getParlayMultiplier(parlay.picks.length);
-              const payout = parlay.amount * mult;
-              users[user].balance += payout;
-              parlay.result = `✅ Won $${payout}`;
-            } else {
-              parlay.result = "❌ Lost";
+            if (canResolve) {
+              bet.isWon = allCorrect;
+              const legs = bet.selections.length;
+              bet.payout = allCorrect ? bet.betAmount * (MULTIPLIERS[legs] || 1) : 0;
+              bet.isSettled = true;
+              bet.resolvedAt = new Date().toLocaleString();
+              if (allCorrect) {
+                let userObj = users.find(u => u.username === bet.user);
+                if (userObj) {
+                  userObj.balance = (userObj.balance || 0) + bet.payout;
+                }
+              }
             }
-            parlay.resolved = true;
           }
         });
-      }
-      renderLines();
-      updateBalanceDisplay();
-      renderParlayHistory();
-    }
-
-    function deleteBetLine(lineId) {
-      if (!isAdmin) return alert("Only admins can delete bet lines.");
-      const lineIndex = lines.findIndex(l => l.id === lineId);
-      if (lineIndex !== -1) {
-        lines.splice(lineIndex, 1);
-        renderLines();
-      }
-    }
-
-    function renderLines() {
-      const container = document.getElementById("lines");
-      container.innerHTML = "";
-      lines.forEach(line => {
-        const div = document.createElement("div");
-        div.className = "bet-line";
-        div.innerHTML = `
-          <h3>${line.name}</h3>
-          <button onclick="addToParlay(${line.id}, 'A')">${line.optionA}</button>
-          <button onclick="addToParlay(${line.id}, 'B')">${line.optionB}</button>
-          <br><br>
-          ${isAdmin ? ` 
-            <strong>Admin Controls:</strong>
-            <button onclick="declareWinner(${line.id}, 'A')">Set ${line.optionA} Wins</button>
-            <button onclick="declareWinner(${line.id}, 'B')">Set ${line.optionB} Wins</button>
-            <button onclick="deleteBetLine(${line.id})">Delete Line</button>
-          ` : ''}
-          <p><strong>Result:</strong> ${line.result ? (line.result === 'A' ? line.optionA : line.optionB) : "Not Set"}</p>
-        `;
-        container.appendChild(div);
+        saveData(BETS_KEY, bets);
+        saveData(USERS_KEY, users);
+        alert("Bets have been resolved.");
+        refreshMemberDashboard();
       });
-    }
 
-    function renderParlayHistory() {
-      const container = document.getElementById("parlayHistoryList");
-      container.innerHTML = "";
-      if (!currentUser) return;
-      users[currentUser].parlays.forEach(parlay => {
-        const div = document.createElement("div");
-        div.innerHTML = `
-          <strong>Parlay (${parlay.picks.length} picks) - Bet: $${parlay.amount}</strong><br>
-          <ul>
-            ${parlay.picks.map(p => `<li>${p.line.name}: ${p.side === 'A' ? p.line.optionA : p.line.optionB}</li>`).join('')}
-          </ul>
-          <p><strong>Result:</strong> ${parlay.result || "Pending"}</p>
-        `;
-        container.appendChild(div);
+      // --- MEMBER DASHBOARD FUNCTIONS ---
+      function refreshMemberDashboard() {
+        // Bonus & Balance Section
+        const bonusSection = document.getElementById('bonusSection');
+        const today = getTodayDate();
+        if (!currentUser.lastClaimDate || currentUser.lastClaimDate !== today) {
+          bonusSection.innerHTML = `Balance: $${Number(currentUser.balance).toFixed(2)} <button id="claimBonusBtn">Claim Daily Bonus ($5)</button>`;
+        } else {
+          bonusSection.innerHTML = `Balance: $${Number(currentUser.balance).toFixed(2)} <button id="claimBonusBtn" disabled>Daily Bonus Claimed</button>`;
+        }
+        const claimBtn = document.getElementById('claimBonusBtn');
+        if (claimBtn && !claimBtn.disabled) {
+          claimBtn.addEventListener('click', claimBonus);
+        }
+
+        // Available Lines
+        const availableDiv = document.getElementById('availableLines');
+        const availableLines = lines.filter(line => line.correctOption === null);
+        if (availableLines.length === 0) {
+          availableDiv.innerHTML = '<p>No available lines to bet on.</p>';
+        } else {
+          let html = '';
+          availableLines.forEach(line => {
+            html += `<div class="line-block">
+                      <strong>${line.description}</strong><br/>
+                      <label>
+                        <input type="radio" name="line_choice_${line.id}" value="1"> ${line.option1}
+                      </label>
+                      <label>
+                        <input type="radio" name="line_choice_${line.id}" value="2"> ${line.option2}
+                      </label>
+                    </div>`;
+          });
+          availableDiv.innerHTML = html;
+        }
+        
+        // Potential Payout Display
+        if (!document.getElementById('potentialPayoutDisplay')) {
+          const potPayout = document.createElement("p");
+          potPayout.id = "potentialPayoutDisplay";
+          potPayout.innerText = "Potential Payout: N/A";
+          availableDiv.parentNode.insertBefore(potPayout, document.getElementById('placeBetForm').querySelector('button[type="submit"]'));
+        }
+        document.getElementById('betAmount').addEventListener('input', updatePotentialPayout);
+        document.getElementById('availableLines').addEventListener('change', updatePotentialPayout);
+        updatePotentialPayout();
+
+        // Live Bets
+        const liveBetsContainer = document.getElementById('liveBetsContainer');
+        const liveBets = bets.filter(bet => bet.user === currentUser.username && !bet.isSettled);
+        if (liveBets.length === 0) {
+          liveBetsContainer.innerHTML = '<p>No live bets.</p>';
+        } else {
+          let html = '<table><tr><th>ID</th><th>Amount</th><th>Selections</th><th>Placed On</th></tr>';
+          liveBets.forEach(bet => {
+            let selectionsStr = bet.selections.map(sel => {
+              const line = lines.find(l => l.id === sel.lineId);
+              if (!line) return '';
+              const optionText = sel.choice === 1 ? line.option1 : line.option2;
+              return line.description + " (" + optionText + ")";
+            }).join(" | ");
+            html += `<tr>
+                      <td>${bet.id}</td>
+                      <td>${bet.betAmount}</td>
+                      <td>${selectionsStr}</td>
+                      <td>${bet.createdAt}</td>
+                     </tr>`;
+          });
+          html += '</table>';
+          liveBetsContainer.innerHTML = html;
+        }
+
+        // Past Bets
+        const pastBetsContainer = document.getElementById('pastBetsContainer');
+        const pastBets = bets.filter(bet => bet.user === currentUser.username && bet.isSettled);
+        if (pastBets.length === 0) {
+          pastBetsContainer.innerHTML = '<p>No past bets.</p>';
+        } else {
+          let html = '<table><tr><th>ID</th><th>Amount</th><th>Selections</th><th>Status</th><th>Payout</th><th>Resolved On</th></tr>';
+          pastBets.forEach(bet => {
+            let selectionsStr = bet.selections.map(sel => {
+              const line = lines.find(l => l.id === sel.lineId);
+              if (!line) return '';
+              const optionText = sel.choice === 1 ? line.option1 : line.option2;
+              return line.description + " (" + optionText + ")";
+            }).join(" | ");
+            html += `<tr>
+                      <td>${bet.id}</td>
+                      <td>${bet.betAmount}</td>
+                      <td>${selectionsStr}</td>
+                      <td>${bet.isWon ? 'Won' : 'Lost'}</td>
+                      <td>${bet.payout ? bet.payout : '-'}</td>
+                      <td>${bet.resolvedAt ? bet.resolvedAt : '-'}</td>
+                     </tr>`;
+          });
+          html += '</table>';
+          pastBetsContainer.innerHTML = html;
+        }
+      }
+
+      // Update potential payout based on entered bet amount and number of selections.
+      function updatePotentialPayout() {
+        const betAmtValue = document.getElementById('betAmount').value;
+        const betAmount = parseFloat(betAmtValue);
+        const availableDiv = document.getElementById('availableLines');
+        const checkedRadios = availableDiv.querySelectorAll('input[type="radio"]:checked');
+        const count = checkedRadios.length;
+        let potentialText = "Potential Payout: N/A";
+        if (!isNaN(betAmount) && betAmount > 0 && count >= 2 && count <= 6 && MULTIPLIERS[count]) {
+          const payout = betAmount * MULTIPLIERS[count];
+          potentialText = "Potential Payout: $" + payout.toFixed(2);
+        }
+        document.getElementById('potentialPayoutDisplay').innerText = potentialText;
+      }
+
+      // MEMBER BONUS & BALANCE: Claim Daily Bonus.
+      function claimBonus() {
+        const today = getTodayDate();
+        if (currentUser.lastClaimDate === today) {
+          alert("Daily bonus already claimed for today.");
+          return;
+        }
+        currentUser.balance = (currentUser.balance || 0) + 5;
+        currentUser.lastClaimDate = today;
+        for (let i = 0; i < users.length; i++) {
+          if (users[i].id === currentUser.id) {
+            users[i] = currentUser;
+            break;
+          }
+        }
+        saveData(USERS_KEY, users);
+        alert("Daily bonus of $5 claimed!");
+        refreshMemberDashboard();
+      }
+
+      // MEMBER: Place a Bet.
+      document.getElementById('placeBetForm').addEventListener('submit', function(e) {
+        e.preventDefault();
+        const betAmount = parseFloat(document.getElementById('betAmount').value);
+        if (betAmount > currentUser.balance) {
+          alert("Insufficient balance to place this bet.");
+          return;
+        }
+        let selections = [];
+        const availableLines = lines.filter(line => line.correctOption === null);
+        availableLines.forEach(line => {
+          const radios = document.getElementsByName("line_choice_" + line.id);
+          for (let radio of radios) {
+            if (radio.checked) {
+              selections.push({ lineId: line.id, choice: parseInt(radio.value) });
+            }
+          }
+        });
+        if (selections.length < 2) {
+          alert("Select options for at least 2 lines.");
+          return;
+        }
+        if (selections.length > 6) {
+          alert("You cannot select more than 6 lines.");
+          return;
+        }
+        currentUser.balance -= betAmount;
+        for (let i = 0; i < users.length; i++) {
+          if (users[i].id === currentUser.id) {
+            users[i] = currentUser;
+            break;
+          }
+        }
+        saveData(USERS_KEY, users);
+        const newBet = {
+          id: generateId(bets),
+          user: currentUser.username,
+          betAmount: betAmount,
+          selections: selections,
+          isSettled: false,
+          isWon: null,
+          payout: null,
+          createdAt: new Date().toLocaleString(),
+          resolvedAt: null
+        };
+        bets.push(newBet);
+        saveData(BETS_KEY, bets);
+        document.getElementById('placeBetForm').reset();
+        refreshMemberDashboard();
       });
-    }
+
+      // --- AUTO UPDATE AVAILABLE LINES FROM STORAGE (For other tabs) ---
+      window.addEventListener("storage", function(e) {
+        if (e.key === LINES_KEY && currentUser && currentUser.role === 'member') {
+          refreshMemberDashboard();
+        }
+      });
+    });
+  </script>
+</body>
+</html>
+
+
+  <script>
+    
   </script>
 </body>
 </html>
