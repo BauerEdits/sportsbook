@@ -100,9 +100,7 @@
     let lines = [], bets = [], pendingSelections = {};
 
     document.addEventListener("DOMContentLoaded", () => {
-      // —————————————————————————————
       // 1) Init Firebase
-      // —————————————————————————————
       const firebaseConfig = {
         apiKey: "AIzaSyBfS12-iZ4ANoBuXPJWoMNvs8F94BARU54",
         authDomain: "gambling-1e67c.firebaseapp.com",
@@ -117,293 +115,250 @@
       const db = firebase.database();
       console.log("Firebase initialized.");
 
-      // —————————————————————————————
       // 2) LocalStorage users
-      // —————————————————————————————
       const USERS_KEY = "betting_users";
-      function loadUsers() { return JSON.parse(localStorage.getItem(USERS_KEY)) || []; }
+      function loadUsers() { return JSON.parse(localStorage.getItem(USERS_KEY))||[]; }
       function saveUsers(u) { localStorage.setItem(USERS_KEY, JSON.stringify(u)); }
-      function initUsers() {
+      function initUsers(){
         let u = loadUsers();
-        if (!u.find(x => x.username === "admin")) {
-          u.push({ id: 1, username: "admin", password: "admin123", role: "admin" });
-        }
+        if(!u.find(x=>x.username==="admin"))
+          u.push({id:1,username:"admin",password:"admin123",role:"admin"});
         saveUsers(u);
       }
       initUsers();
-      let usersLocal = loadUsers(),
-          currentUser = null;
-      if (localStorage.getItem("currentUser")) {
+      let usersLocal = loadUsers(), currentUser = null;
+      if(localStorage.getItem("currentUser"))
         currentUser = JSON.parse(localStorage.getItem("currentUser"));
-      }
 
-      function saveCurrent() { localStorage.setItem("currentUser", JSON.stringify(currentUser)); }
-      function removeCurrent() { localStorage.removeItem("currentUser"); }
-      function genId(a) { return a.length ? Math.max(...a.map(x => x.id)) + 1 : 1; }
-      function today() { return new Date().toISOString().split("T")[0]; }
-      function ensureBal(u) {
-        if (u.role === "member" && u.balance == null) u.balance = 1000;
+      function saveCurrent(){ localStorage.setItem("currentUser", JSON.stringify(currentUser)); }
+      function removeCurrent(){ localStorage.removeItem("currentUser"); }
+      function genId(a){ return a.length?Math.max(...a.map(x=>x.id))+1:1; }
+      function today(){ return new Date().toISOString().split("T")[0]; }
+      function ensureBal(u){
+        if(u.role==="member"&&u.balance==null) u.balance=1000;
         return u;
       }
-      function updateUserBal(name, amt) {
-        let ul = loadUsers(), usr = ul.find(x => x.username === name);
-        if (usr) {
-          usr.balance = (usr.balance || 0) + amt;
-          if (currentUser && currentUser.username === name) {
-            currentUser.balance = usr.balance;
-            saveCurrent();
+      function updateUserBal(name, amt){
+        let ul = loadUsers(), usr = ul.find(x=>x.username===name);
+        if(usr){
+          usr.balance = (usr.balance||0) + amt;
+          if(currentUser && currentUser.username===name){
+            currentUser.balance = usr.balance; saveCurrent();
           }
           saveUsers(ul);
         }
       }
 
-      // —————————————————————————————
-      // 3) Immediately restore session & UI on page load
-      // —————————————————————————————
-      if (currentUser) {
-        document.getElementById("loginSection").classList.add("hidden");
-        document.getElementById("signupSection").classList.add("hidden");
-        if (currentUser.role === "admin") {
-          document.getElementById("adminDashboard").classList.remove("hidden");
-        } else {
-          ensureBal(currentUser);
-          document.getElementById("memberDashboard").classList.remove("hidden");
-        }
-      }
-
-      // —————————————————————————————
-      // 4) UI: toggle Login/Signup
-      // —————————————————————————————
-      showSignup.onclick = () => {
+      // 3) UI toggle
+      showSignup.onclick = ()=>{
         loginSection.classList.add("hidden");
         signupSection.classList.remove("hidden");
       };
-      showLogin.onclick = () => {
+      showLogin.onclick = ()=>{
         signupSection.classList.add("hidden");
         loginSection.classList.remove("hidden");
       };
 
-      // —————————————————————————————
-      // 5) Login / Signup / Logout
-      // —————————————————————————————
-      loginForm.onsubmit = e => {
+      // 4) Login / Signup / Logout
+      loginForm.onsubmit = e=>{
         e.preventDefault();
-        let un = loginUsername.value.trim(),
-            pw = loginPassword.value.trim(),
-            u = loadUsers().find(x => x.username === un && x.password === pw);
-        if (u) {
-          if (u.role === "member") u = ensureBal(u);
-          currentUser = u;
-          saveCurrent();
+        let un=loginUsername.value.trim(),
+            pw=loginPassword.value.trim(),
+            u=loadUsers().find(x=>x.username===un&&x.password===pw);
+        if(u){
+          if(u.role==="member") u=ensureBal(u);
+          currentUser=u; saveCurrent();
           loginSection.classList.add("hidden");
           signupSection.classList.add("hidden");
-          if (u.role === "admin") adminDashboard.classList.remove("hidden");
+          if(u.role==="admin") adminDashboard.classList.remove("hidden");
           else memberDashboard.classList.remove("hidden");
-        } else {
-          loginMessage.textContent = "Invalid credentials.";
-        }
+        } else loginMessage.textContent="Invalid credentials.";
       };
-      signupForm.onsubmit = e => {
+      signupForm.onsubmit = e=>{
         e.preventDefault();
-        let un = signupUsername.value.trim(),
-            pw = signupPassword.value.trim(),
-            cp = signupConfirm.value.trim(),
-            role = signupRole.value;
-        if (pw !== cp) { signupMessage.textContent = "Passwords do not match."; return; }
-        let ul = loadUsers();
-        if (role === "admin") { signupMessage.textContent = "Admin exists."; return; }
-        if (ul.find(x => x.username === un)) { signupMessage.textContent = "Username exists."; return; }
-        let nu = { id: genId(ul), username: un, password: pw, role: "member", balance: 1000, lastClaimDate: "" };
+        let un=signupUsername.value.trim(),
+            pw=signupPassword.value.trim(),
+            cp=signupConfirm.value.trim(),
+            role=signupRole.value;
+        if(pw!==cp){ signupMessage.textContent="Passwords do not match."; return; }
+        let ul=loadUsers();
+        if(role==="admin"){ signupMessage.textContent="Admin exists."; return; }
+        if(ul.find(x=>x.username===un)){ signupMessage.textContent="Username exists."; return; }
+        let nu={id:genId(ul),username:un,password:pw,role:"member",balance:1000,lastClaimDate:""};
         ul.push(nu); saveUsers(ul);
-        currentUser = nu; saveCurrent();
+        currentUser=nu; saveCurrent();
         signupSection.classList.add("hidden");
         memberDashboard.classList.remove("hidden");
       };
-      logoutBtnAdmin.onclick = logoutBtnMember.onclick = () => {
-        currentUser = null;
-        removeCurrent();
+      logoutBtnAdmin.onclick = logoutBtnMember.onclick = ()=>{
+        currentUser=null; removeCurrent();
         loginSection.classList.remove("hidden");
         adminDashboard.classList.add("hidden");
         memberDashboard.classList.add("hidden");
       };
 
-      // —————————————————————————————
-      // 6) Firebase operations
-      // —————————————————————————————
-      async function addLine(line) {
-        let r = db.ref("lines").push();
+      // 5) Firebase helpers
+      async function addLine(line){
+        let r=db.ref("lines").push();
         await r.set(line);
       }
-      async function addBet(bet) {
-        let r = db.ref("bets").push();
+      async function addBet(bet){
+        let r=db.ref("bets").push();
         await r.set(bet);
       }
-      async function evalBets() {
-        for (let b of bets) {
-          if (!b.isSettled) {
-            let all = true, res = [];
-            for (let s of b.selections) {
-              let ln = lines.find(x => x.id === s.lineId);
-              if (!ln || ln.correctOption == null) { all = false; break; }
-              res.push(s.choice === ln.correctOption);
+      async function evalBets(){
+        for(let b of bets){
+          if(!b.isSettled){
+            let all=true, res=[];
+            for(let s of b.selections){
+              let ln=lines.find(x=>x.id===s.lineId);
+              if(!ln||ln.correctOption==null){ all=false; break; }
+              res.push(s.choice===ln.correctOption);
             }
-            if (all && b.selections.length) {
-              b.isSettled = true;
-              b.resolvedAt = new Date().toLocaleString();
-              b.results = res;
-              b.isWon = res.every(x => x);
-              if (b.isWon) {
-                let m = MULTIPLIERS[b.selections.length] || 1;
-                b.payout = b.betAmount * m;
-                updateUserBal(b.user, b.payout);
-              } else b.payout = 0;
-              await db.ref("bets/" + b.id).update(b);
+            if(all&&b.selections.length){
+              b.isSettled=true;
+              b.resolvedAt=new Date().toLocaleString();
+              b.results=res;
+              b.isWon=res.every(x=>x);
+              if(b.isWon){
+                let m=MULTIPLIERS[b.selections.length]||1;
+                b.payout=b.betAmount*m;
+                updateUserBal(b.user,b.payout);
+              } else b.payout=0;
+              await db.ref("bets/"+b.id).update(b);
             }
           }
         }
         refreshPastPlaysAdminUI();
       }
-      resolveBetsBtn.onclick = () => evalBets();
+      resolveBetsBtn.onclick = ()=>evalBets();
 
-      // —————————————————————————————
-      // 7) Real-time listeners
-      // —————————————————————————————
-      db.ref("lines").on("value", snap => {
-        let d = snap.val()||{};
-        lines = Object.keys(d).map(k => ({ id:k, ...d[k] }));
+      // 6) Realtime listeners
+      db.ref("lines").on("value", snap=>{
+        let d=snap.val()||{};
+        lines=Object.keys(d).map(k=>({id:k,...d[k]}));
         evalBets();
-        if (currentUser) {
-          if (currentUser.role === "admin") {
+        if(currentUser){
+          if(currentUser.role==="admin"){
             refreshAdminDashboardUI();
             refreshLivePlaysAdminUI();
           } else refreshMemberDashboardUI();
         }
       });
-      db.ref("bets").on("value", snap => {
-        let d = snap.val()||{};
-        bets = Object.keys(d).map(k => ({ id:k, ...d[k] }));
-        if (currentUser) {
-          if (currentUser.role === "admin") {
+      db.ref("bets").on("value", snap=>{
+        let d=snap.val()||{};
+        bets=Object.keys(d).map(k=>({id:k,...d[k]}));
+        if(currentUser){
+          if(currentUser.role==="admin"){
             refreshLivePlaysAdminUI();
             refreshPastPlaysAdminUI();
           } else refreshMemberDashboardUI();
         }
       });
 
-      // —————————————————————————————
-      // 8) Admin UI functions
-      // —————————————————————————————
-      function refreshAdminDashboardUI() {
-        if (!lines.length) return linesContainer.innerHTML = "<p>No lines.</p>";
-        let h = '<table><tr><th>ID</th><th>Desc</th><th>Opt1</th><th>Opt2</th><th>Status</th><th>Actions</th></tr>';
-        lines.forEach(l => {
-          let st = l.correctOption==null ? "Pending" : (l.correctOption===1?l.option1:l.option2);
-          h += `<tr>
-                  <td>${l.id}</td>
-                  <td>${l.description}</td>
-                  <td>${l.option1}</td>
-                  <td>${l.option2}</td>
-                  <td>${st}</td>
-                  <td>
-                    <button onclick="updateLineOutcome('${l.id}')">Set</button>
-                    <button onclick="deleteLine('${l.id}')">Del</button>
-                    <button onclick="resetLine('${l.id}')">Reset</button>
-                  </td>
-                </tr>`;
+      // 7) Admin UIs
+      function refreshAdminDashboardUI(){
+        if(!lines.length){ linesContainer.innerHTML="<p>No lines.</p>"; return; }
+        let h='<table><tr><th>ID</th><th>Desc</th><th>Opt1</th><th>Opt2</th><th>Status</th><th>Act</th></tr>';
+        lines.forEach(l=>{
+          let st=l.correctOption==null?"Pending":
+                 (l.correctOption===1?l.option1:l.option2);
+          h+=`<tr>
+                <td>${l.id}</td>
+                <td>${l.description}</td>
+                <td>${l.option1}</td>
+                <td>${l.option2}</td>
+                <td>${st}</td>
+                <td>
+                  <button onclick="updateLineOutcome('${l.id}')">Set</button>
+                  <button onclick="deleteLine('${l.id}')">Del</button>
+                  <button onclick="resetLine('${l.id}')">Reset</button>
+                </td>
+             </tr>`;
         });
-        h += "</table>";
-        linesContainer.innerHTML = h;
+        h+="</table>"; linesContainer.innerHTML=h;
       }
-      function refreshLivePlaysAdminUI() {
-        let lp = livePlaysContainer, live = bets.filter(b=>!b.isSettled);
-        if (!live.length) return lp.innerHTML = "<p>No live plays.</p>";
-        let h = '<table><tr><th>ID</th><th>User</th><th>Amt</th><th>Sels</th><th>On</th></tr>';
-        live.forEach(b => {
-          let s = b.selections.map(s=> {
-            let ln = lines.find(x=>x.id===s.lineId);
-            return ln?`${ln.description} (${s.choice===1?ln.option1:ln.option2})`:"";
+      function refreshLivePlaysAdminUI(){
+        if(!bets.filter(b=>!b.isSettled).length){
+          livePlaysContainer.innerHTML="<p>No live plays.</p>"; return;
+        }
+        let h='<table><tr><th>ID</th><th>User</th><th>Amt</th><th>Sels</th><th>On</th></tr>';
+        bets.filter(b=>!b.isSettled).forEach(b=>{
+          let s=b.selections.map(sel=>{
+            let ln=lines.find(x=>x.id===sel.lineId);
+            return ln?`${ln.description} (${sel.choice===1?ln.option1:ln.option2})`:"";
           }).join(" | ");
-          h += `<tr><td>${b.id}</td><td>${b.user}</td><td>${b.betAmount}</td><td>${s}</td><td>${b.createdAt}</td></tr>`;
+          h+=`<tr><td>${b.id}</td><td>${b.user}</td><td>${b.betAmount}</td><td>${s}</td><td>${b.createdAt}</td></tr>`;
         });
-        h += "</table>";
-        lp.innerHTML = h;
+        h+="</table>"; livePlaysContainer.innerHTML=h;
       }
-      function refreshPastPlaysAdminUI() {
-        let pp = pastPlaysContainer, past = bets.filter(b=>b.isSettled);
-        if (!past.length) return pp.innerHTML = "<p>No past plays.</p>";
-        let h = '<table><tr><th>ID</th><th>User</th><th>Amt</th><th>Res</th><th>Status</th><th>Pay</th><th>On</th></tr>';
-        past.forEach(b => {
-          let r = (b.results||[]).map(x=>x?"✓":"✗").join(" ");
-          h += `<tr>
-                  <td>${b.id}</td>
-                  <td>${b.user}</td>
-                  <td>${b.betAmount}</td>
-                  <td>${r}</td>
-                  <td>${b.isWon?"Won":"Lost"}</td>
-                  <td>${b.payout||"-"}</td>
-                  <td>${b.resolvedAt||"-"}</td>
-                </tr>`;
+      function refreshPastPlaysAdminUI(){
+        if(!bets.filter(b=>b.isSettled).length){
+          pastPlaysContainer.innerHTML="<p>No past plays.</p>"; return;
+        }
+        let h='<table><tr><th>ID</th><th>User</th><th>Amt</th><th>Res</th><th>Status</th><th>Pay</th><th>On</th></tr>';
+        bets.filter(b=>b.isSettled).forEach(b=>{
+          let r=(b.results||[]).map(x=>x?"✓":"✗").join(" ");
+          h+=`<tr>
+                <td>${b.id}</td><td>${b.user}</td><td>${b.betAmount}</td>
+                <td>${r}</td><td>${b.isWon?"Won":"Lost"}</td><td>${b.payout||"-"}</td>
+                <td>${b.resolvedAt}</td>
+              </tr>`;
         });
-        h += "</table>";
-        pp.innerHTML = h;
+        h+="</table>"; pastPlaysContainer.innerHTML=h;
       }
-      async function updateLineOutcome(id) {
-        let refL = db.ref("lines/"+id),
-            snap = await refL.once("value"),
-            l = snap.val();
-        if (!l) return;
-        let i = prompt(`Enter 1 or 2 for "${l.description}"`).trim();
-        if (i==="1"||i==="2") await refL.update({correctOption:parseInt(i)});
+      async function updateLineOutcome(id){
+        let refL=db.ref("lines/"+id), snap=await refL.once("value"), l=snap.val();
+        if(!l) return;
+        let inp=prompt(`For "${l.description}", enter 1 or 2:`).trim();
+        if(inp==="1"||inp==="2") await refL.update({correctOption:parseInt(inp)});
       }
-      async function deleteLine(id) {
-        if (confirm("Delete line "+id+"?")) await db.ref("lines/"+id).set(null);
+      async function deleteLine(id){
+        if(confirm("Del line "+id+"?")) await db.ref("lines/"+id).set(null);
       }
-      async function resetLine(id) {
+      async function resetLine(id){
         await db.ref("lines/"+id).update({correctOption:null});
       }
       window.updateLineOutcome = updateLineOutcome;
       window.deleteLine        = deleteLine;
       window.resetLine         = resetLine;
-      createLineForm.onsubmit = e=>{
+
+      createLineForm.onsubmit=e=>{
         e.preventDefault();
         addLine({
-          description: lineDescription.value.trim(),
-          option1: option1Text.value.trim(),
-          option2: option2Text.value.trim(),
-          correctOption: null
+          description:lineDescription.value.trim(),
+          option1:option1Text.value.trim(),
+          option2:option2Text.value.trim(),
+          correctOption:null
         });
         createLineForm.reset();
       };
 
-      // —————————————————————————————
-      // 9) Member UI functions
-      // —————————————————————————————
-      betAmount.addEventListener("input", updatePotentialPayout);
+      // 8) Member UIs
+      betAmount.addEventListener("input",updatePotentialPayout);
       window.togglePending = (lid,ch)=>{
         if(pendingSelections[lid]===ch) delete pendingSelections[lid];
         else pendingSelections[lid]=ch;
         refreshMemberDashboardUI();
       };
-      function refreshMemberDashboardUI() {
+      function refreshMemberDashboardUI(){
         // Bonus
-        let bs = bonusSection, td = today();
-        if (!currentUser.lastClaimDate || currentUser.lastClaimDate!==td) {
-          bs.innerHTML = `Balance: $${currentUser.balance.toFixed(2)}
-                          <button id="claimBonusBtn">Claim $5</button>`;
+        let bs=bonusSection, td=today();
+        if(!currentUser.lastClaimDate||currentUser.lastClaimDate!==td){
+          bs.innerHTML=`Balance: $${currentUser.balance.toFixed(2)} <button id="claimBonusBtn">Claim $5</button>`;
         } else {
-          bs.innerHTML = `Balance: $${currentUser.balance.toFixed(2)}
-                          <button disabled>Claimed</button>`;
+          bs.innerHTML=`Balance: $${currentUser.balance.toFixed(2)} <button disabled>Claimed</button>`;
         }
-        let cb = document.getElementById("claimBonusBtn");
-        if (cb && !cb.disabled) cb.onclick = claimBonus;
+        let cb=document.getElementById("claimBonusBtn");
+        if(cb&&!cb.disabled) cb.onclick=claimBonus;
 
-        // Available Lines
-        let av = availableLines, ol = lines.filter(l=>l.correctOption===null);
-        if (!ol.length) av.innerHTML = "<p>No lines.</p>";
+        // Lines
+        let av=availableLines, ol=lines.filter(l=>l.correctOption===null);
+        if(!ol.length) av.innerHTML="<p>No lines.</p>";
         else {
           av.innerHTML = ol.map(l=>{
-            let c1 = pendingSelections[l.id]===1?"option-btn selected":"option-btn",
-                c2 = pendingSelections[l.id]===2?"option-btn selected":"option-btn";
+            let c1=pendingSelections[l.id]===1?"option-btn selected":"option-btn",
+                c2=pendingSelections[l.id]===2?"option-btn selected":"option-btn";
             return `<div class="line-block">
                       <strong>${l.description}</strong><br/>
                       <button class="${c1}" onclick="togglePending('${l.id}',1)">${l.option1}</button>
@@ -414,13 +369,13 @@
         updatePotentialPayout();
 
         // Live Bets
-        let lb = liveBetsContainer, ml = bets.filter(b=>b.user===currentUser.username&&!b.isSettled);
-        if (!ml.length) lb.innerHTML = "<p>No live bets.</p>";
+        let lb=liveBetsContainer, ml=bets.filter(b=>b.user===currentUser.username&&!b.isSettled);
+        if(!ml.length) lb.innerHTML="<p>No live bets.</p>";
         else {
           lb.innerHTML = `<table><tr><th>ID</th><th>Amt</th><th>Sels</th><th>On</th></tr>` +
             ml.map(b=>{
-              let s = b.selections.map(sel=>{
-                let ln = lines.find(x=>x.id===sel.lineId);
+              let s=b.selections.map(sel=>{
+                let ln=lines.find(x=>x.id===sel.lineId);
                 return ln?`${ln.description} (${sel.choice===1?ln.option1:ln.option2})`:"";
               }).join(" | ");
               return `<tr><td>${b.id}</td><td>${b.betAmount}</td><td>${s}</td><td>${b.createdAt}</td></tr>`;
@@ -429,68 +384,64 @@
         }
 
         // Past Bets
-        let pb = pastBetsContainer, pm = bets.filter(b=>b.user===currentUser.username&&b.isSettled);
-        if (!pm.length) pb.innerHTML = "<p>No past bets.</p>";
+        let pb=pastBetsContainer, pm=bets.filter(b=>b.user===currentUser.username&&b.isSettled);
+        if(!pm.length) pb.innerHTML="<p>No past bets.</p>";
         else {
           pb.innerHTML = `<table><tr><th>ID</th><th>Amt</th><th>Res</th><th>Status</th><th>Pay</th><th>On</th></tr>` +
             pm.map(b=>{
-              let r = (b.results||[]).map(x=>x?"✓":"✗").join(" ");
+              let r=(b.results||[]).map(x=>x?"✓":"✗").join(" ");
               return `<tr>
                         <td>${b.id}</td><td>${b.betAmount}</td><td>${r}</td>
-                        <td>${b.isWon?"Won":"Lost"}</td><td>${b.payout||"-"}</td><td>${b.resolvedAt||"-"}</td>
+                        <td>${b.isWon?"Won":"Lost"}</td><td>${b.payout||"-"}</td><td>${b.resolvedAt}</td>
                       </tr>`;
             }).join("") + `</table>`;
         }
       }
       function updatePotentialPayout(){
-        let cnt = Object.keys(pendingSelections).length,
-            amt = parseFloat(betAmount.value),
-            txt = "Potential Payout: N/A";
-        if (!isNaN(amt) && amt>0 && cnt>=2 && cnt<=6 && MULTIPLIERS[cnt])
-          txt = "Potential Payout: $"+(amt*MULTIPLIERS[cnt]).toFixed(2);
-        potentialPayoutDisplay.innerText = txt;
+        let cnt=Object.keys(pendingSelections).length,
+            amt=parseFloat(betAmount.value),
+            txt="Potential Payout: N/A";
+        if(!isNaN(amt)&&amt>0&&cnt>=2&&cnt<=6&&MULTIPLIERS[cnt])
+          txt="Potential Payout: $"+(amt*MULTIPLIERS[cnt]).toFixed(2);
+        potentialPayoutDisplay.innerText=txt;
       }
       function claimBonus(){
-        let td = today();
-        if (currentUser.lastClaimDate === td) { alert("Already claimed"); return; }
-        currentUser.balance += 5;
-        currentUser.lastClaimDate = td;
+        let td=today();
+        if(currentUser.lastClaimDate===td){ alert("Already claimed"); return; }
+        currentUser.balance+=5;
+        currentUser.lastClaimDate=td;
         saveUsers(loadUsers().map(u=>u.username===currentUser.username?currentUser:u));
         alert("$5 claimed");
         refreshMemberDashboardUI();
       }
-      placeBetForm.onsubmit = async e=>{
+      placeBetForm.onsubmit=async e=>{
         e.preventDefault();
-        let amt = parseFloat(betAmount.value);
-        if (amt > currentUser.balance) { alert("Insufficient"); return; }
-        let sels = Object.keys(pendingSelections).map(id=>({ lineId:id, choice:pendingSelections[id] }));
-        if (sels.length<2) { alert("Select ≥2"); return; }
-        if (sels.length>6) { alert("Max 6"); return; }
-
-        currentUser.balance -= amt;
+        let amt=parseFloat(betAmount.value);
+        if(amt>currentUser.balance){ alert("Insufficient"); return; }
+        let sels=Object.keys(pendingSelections).map(id=>({lineId:id,choice:pendingSelections[id]}));
+        if(sels.length<2){ alert("Select ≥2"); return; }
+        if(sels.length>6){ alert("Max 6"); return; }
+        currentUser.balance-=amt;
         saveUsers(loadUsers().map(u=>u.username===currentUser.username?currentUser:u));
         await addBet({
-          betAmount: amt,
-          user: currentUser.username,
-          selections: sels,
-          isSettled: false,
-          isWon: null,
-          payout: null,
-          createdAt: new Date().toLocaleString(),
-          resolvedAt: null
+          betAmount:amt, user:currentUser.username,
+          selections:sels, isSettled:false,
+          isWon:null, payout:null,
+          createdAt:new Date().toLocaleString(),
+          resolvedAt:null
         });
-        pendingSelections = {};
+        pendingSelections={};
         placeBetForm.reset();
         refreshMemberDashboardUI();
       };
 
-      // Auto-refresh member dashboard if no picks pending
+      // Auto-refresh member UI if no picks pending
       setInterval(()=>{
-        if (currentUser && currentUser.role==="member" && Object.keys(pendingSelections).length===0) {
+        if(currentUser&&currentUser.role==="member"&&Object.keys(pendingSelections).length===0){
           refreshMemberDashboardUI();
         }
-      }, 5000);
-    });
+      },5000);
+    }); // end DOMContentLoaded
 
     // Multipliers
     const MULTIPLIERS = {2:3,3:7,4:10,5:12,6:25};
