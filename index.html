@@ -5,14 +5,14 @@
   <title>Betting App</title>
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <style>
-    body { font-family:Arial,sans-serif; margin:20px }
+    body { font-family:Arial,sans-serif;margin:20px }
     .hidden { display:none }
     .container { margin-bottom:20px }
     .line-block { border:1px solid #ddd; padding:10px; margin-bottom:10px }
-    .option-btn { margin-right:5px; padding:5px 10px; }
+    .option-btn { margin-right:5px;padding:5px 10px; }
     .selected { background:lightgreen }
-    table,th,td { border:1px solid #ccc; border-collapse:collapse; padding:5px }
-    a { color:blue; text-decoration:underline; cursor:pointer }
+    table,th,td { border:1px solid #ccc;border-collapse:collapse;padding:5px }
+    a { color:blue;text-decoration:underline;cursor:pointer }
   </style>
   <script src="https://www.gstatic.com/firebasejs/9.14.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.14.0/firebase-database-compat.js"></script>
@@ -99,7 +99,7 @@
     <div id="liveBetsContainer"></div>
 
     <h3>Past Bets</h3>
-    <div id="pastBetsContainer"></div>
+    <div id="pastPlaysContainer"></div>
   </div>
 
 <script>
@@ -110,24 +110,22 @@ document.addEventListener('DOMContentLoaded',()=>{
   const UKEY    = 'bet_users';
   const SESSKEY = 'current_session';
 
-  // show/hide helper
-  const show = (id,on) =>
-    document.getElementById(id).classList[on?'remove':'add']('hidden');
+  const show = (id,on)=>document.getElementById(id).classList[on?'remove':'add']('hidden');
 
-  // Firebase init
+  // --- Firebase init with your real config ---
   firebase.initializeApp({
-    apiKey: "...",
-    authDomain: "...",
-    databaseURL: "...",
-    projectId: "...",
-    storageBucket: "...",
-    messagingSenderId: "...",
-    appId: "...",
-    measurementId: "..."
+    apiKey: "AIzaSyBfS12-iZ4ANoBuXPJWoMNvs8F94BARU54",
+    authDomain: "gambling-1e67c.firebaseapp.com",
+    databaseURL: "https://gambling-1e67c-default-rtdb.firebaseio.com",
+    projectId: "gambling-1e67c",
+    storageBucket: "gambling-1e67c.firebasestorage.app",
+    messagingSenderId: "233258255069",
+    appId: "1:233258255069:web:7f844c31c3664408dd5134",
+    measurementId: "G-9HFLW7KVYW"
   });
   const db = firebase.database();
 
-  // localStorage users/session
+  // --- localStorage users/session ---
   function loadUsers(){ return JSON.parse(localStorage.getItem(UKEY))||[]; }
   function saveUsers(u){ localStorage.setItem(UKEY,JSON.stringify(u)); }
   function loadSession(){ return JSON.parse(localStorage.getItem(SESSKEY)); }
@@ -147,19 +145,18 @@ document.addEventListener('DOMContentLoaded',()=>{
   const genId = arr=> arr.length? Math.max(...arr.map(x=>x.id))+1:1;
   const today = ()=> new Date().toISOString().split('T')[0];
 
-  // write initial user data if missing
+  // ensure user node (balance & bonus date) exists in Firebase
   function ensureUserNode(u){
-    db.ref('users/'+u.username).once('value',snap=>{
+    db.ref('users/'+u).once('value',snap=>{
       if(!snap.exists()){
-        db.ref('users/'+u.username).set({balance:1000,lastClaimDate:""});
+        db.ref('users/'+u).set({balance:1000,lastClaimDate:""});
       }
     });
   }
-
-  // on login or signup, subscribe to user's balance
-  function watchBalance(username){
+  // subscribe to user's Firebase node
+  function watchBalance(u){
     if(userRef) userRef.off();
-    userRef = db.ref('users/'+username);
+    userRef = db.ref('users/'+u);
     userRef.on('value',snap=>{
       const d = snap.val()||{};
       currentSession.balance      = d.balance||0;
@@ -168,16 +165,10 @@ document.addEventListener('DOMContentLoaded',()=>{
       renderMember();
     });
   }
-
-  // update balance via transaction
-  function updateBalance(username, delta){
-    const r = db.ref('users/'+username+'/balance');
-    r.transaction(old=>(old||0)+delta);
+  // atomic update
+  function updateBalance(u,delta){
+    db.ref('users/'+u+'/balance').transaction(old=>(old||0)+delta);
   }
-
-  // globals
-  lines = [];
-  bets  = [];
 
   // realtime listeners
   db.ref('lines').on('value',snap=>{
@@ -189,7 +180,7 @@ document.addEventListener('DOMContentLoaded',()=>{
     renderAdmin(); renderMember();
   });
 
-  // restore session if any
+  // restore session
   currentSession = loadSession();
   if(currentSession){
     show('loginSection',false);
@@ -199,7 +190,7 @@ document.addEventListener('DOMContentLoaded',()=>{
       renderAdmin();
     } else {
       show('memberDashboard',true);
-      ensureUserNode(currentSession);
+      ensureUserNode(currentSession.username);
       watchBalance(currentSession.username);
     }
   }
@@ -233,7 +224,7 @@ document.addEventListener('DOMContentLoaded',()=>{
       renderAdmin();
     } else {
       show('memberDashboard',true);
-      ensureUserNode(u);
+      ensureUserNode(u.username);
       watchBalance(u.username);
     }
   };
@@ -258,14 +249,14 @@ document.addEventListener('DOMContentLoaded',()=>{
       document.getElementById('signupMessage').textContent='Username taken.';
       return;
     }
-    const nu={id:genId(ul),username:un,password:pw,role:'member'};
-    ul.push(nu); saveUsers(ul);
+    ul.push({id:genId(ul),username:un,password:pw,role:'member'});
+    saveUsers(ul);
     currentSession = {username:un,role:'member'};
     saveSession(currentSession);
-    ensureUserNode(currentSession);
-    watchBalance(currentSession.username);
     show('signupSection',false);
     show('memberDashboard',true);
+    ensureUserNode(un);
+    watchBalance(un);
   };
 
   // LOGOUT
@@ -299,9 +290,7 @@ document.addEventListener('DOMContentLoaded',()=>{
     if(amt>currentSession.balance){ alert('Insufficient'); return; }
     const sels=Object.entries(pending).map(([id,ch])=>({lineId:id,choice:ch}));
     if(sels.length<2||sels.length>6){ alert('Pick 2–6 lines'); return; }
-    // deduct immediately
     updateBalance(currentSession.username,-amt);
-    // write bet
     await db.ref('bets').push().set({
       betAmount:amt,
       user:currentSession.username,
@@ -317,16 +306,14 @@ document.addEventListener('DOMContentLoaded',()=>{
     renderMember();
   };
 
-  // Resolve Unsettled Bets
+  // RESOLVE BETS
   document.getElementById('resolveBetsBtn').onclick=async ()=>{
     for(let b of bets){
       if(b.isSettled) continue;
-      // skip if any selection still pending
       if(b.selections.some(sel=>{
         const ln=lines.find(l=>l.id===sel.lineId);
         return !ln||ln.correctOption==null;
       })) continue;
-      // mark results
       const results=b.selections.map(sel=>{
         const ln=lines.find(l=>l.id===sel.lineId);
         return Number(sel.choice)===Number(ln.correctOption);
@@ -353,7 +340,7 @@ document.addEventListener('DOMContentLoaded',()=>{
     renderMember();
   };
 
-  // update potential display
+  // update payout display
   document.getElementById('betAmt').oninput=()=>{
     const cnt=Object.keys(pending).length,
           amt=parseFloat(document.getElementById('betAmt').value),
@@ -363,18 +350,21 @@ document.addEventListener('DOMContentLoaded',()=>{
       : 'Potential Payout: N/A';
   };
 
-  // RENDER ADMIN
+  // RENDER FUNCTIONS
   function renderAdmin(){
+    const lc=document.getElementById('linesContainer'),
+          lp=document.getElementById('livePlaysContainer'),
+          pp=document.getElementById('pastPlaysContainer');
+
     // Lines
-    const lc=document.getElementById('linesContainer');
     if(!lines.length) lc.innerHTML='<p>No lines.</p>';
     else {
       let h=`<table>
         <tr><th>ID</th><th>Desc</th><th>O1</th><th>O2</th><th>Status</th><th>Actions</th></tr>`;
-      for(const l of lines){
+      lines.forEach(l=>{
         const st = l.correctOption==null
-                 ? 'Pending'
-                 : (l.correctOption===1?l.option1:l.option2);
+                  ? 'Pending'
+                  : (l.correctOption===1?l.option1:l.option2);
         h+=`<tr>
           <td>${l.id}</td><td>${l.description}</td><td>${l.option1}</td>
           <td>${l.option2}</td><td>${st}</td>
@@ -385,66 +375,62 @@ document.addEventListener('DOMContentLoaded',()=>{
             <button onclick="db.ref('lines/${l.id}').update({correctOption:null})">Reuse</button>
           </td>
         </tr>`;
-      }
+      });
       lc.innerHTML=h+'</table>';
     }
-    // Live
-    const lp=document.getElementById('livePlaysContainer'),
-          live=bets.filter(b=>!b.isSettled);
+
+    // Live Plays
+    const live=bets.filter(b=>!b.isSettled);
     if(!live.length) lp.innerHTML='<p>No live plays.</p>';
     else {
       let h=`<table>
         <tr><th>ID</th><th>User</th><th>Amt</th><th>Sel</th><th>On</th></tr>`;
-      for(const b of live){
-        const s=b.selections.map(sel=>{
+      live.forEach(b=>{
+        const selstr=b.selections.map(sel=>{
           const ln=lines.find(x=>x.id===sel.lineId);
           return ln?`${ln.description}(${sel.choice===1?ln.option1:ln.option2})`:'';
         }).join(' | ');
         h+=`<tr>
           <td>${b.id}</td><td>${b.user}</td><td>${b.betAmount}</td>
-          <td>${s}</td><td>${b.createdAt}</td>
+          <td>${selstr}</td><td>${b.createdAt}</td>
         </tr>`;
-      }
+      });
       lp.innerHTML=h+'</table>';
     }
-    // Past
-    const pp=document.getElementById('pastPlaysContainer'),
-          past=bets.filter(b=>b.isSettled);
+
+    // Past Plays
+    const past=bets.filter(b=>b.isSettled);
     if(!past.length) pp.innerHTML='<p>No past plays.</p>';
     else {
       let h=`<table>
-        <tr><th>ID</th><th>User</th><th>Amt</th><th>Res</th>
-            <th>Status</th><th>Pay</th><th>On</th></tr>`;
-      for(const b of past){
+        <tr><th>ID</th><th>User</th><th>Amt</th><th>Res</th><th>Status</th><th>Pay</th><th>On</th></tr>`;
+      past.forEach(b=>{
         const rs=b.results.map(r=>r?'✓':'✗').join(' ');
         h+=`<tr>
           <td>${b.id}</td><td>${b.user}</td><td>${b.betAmount}</td>
           <td>${rs}</td><td>${b.isWon?'Won':'Lost'}</td>
           <td>${b.payout}</td><td>${b.resolvedAt}</td>
         </tr>`;
-      }
+      });
       pp.innerHTML=h+'</table>';
     }
   }
 
-  // RENDER MEMBER
   function renderMember(){
     if(!currentSession) return;
     // Bonus & Balance
-    const bs=document.getElementById('bonusSection'),
-          td=today();
+    const bs=document.getElementById('bonusSection'), td=today();
     if(!currentSession.lastClaimDate||currentSession.lastClaimDate!==td){
-      bs.innerHTML=`Balance: $${currentSession.balance.toFixed(2)} 
-        <button id="claimB">Claim $5</button>`;
+      bs.innerHTML=`Balance: $${currentSession.balance.toFixed(2)} <button id="claimB">Claim $5</button>`;
       document.getElementById('claimB').onclick=()=>{
         updateBalance(currentSession.username,5);
         db.ref('users/'+currentSession.username+'/lastClaimDate').set(td);
       };
     } else {
-      bs.innerHTML=`Balance: $${currentSession.balance.toFixed(2)} 
-        <button disabled>Claimed</button>`;
+      bs.innerHTML=`Balance: $${currentSession.balance.toFixed(2)} <button disabled>Claimed</button>`;
     }
-    // Available lines
+
+    // Available Lines
     const av=document.getElementById('availableLines'),
           al=lines.filter(l=>l.correctOption==null);
     if(!al.length) av.innerHTML='<p>No available lines.</p>';
@@ -457,40 +443,41 @@ document.addEventListener('DOMContentLoaded',()=>{
         <button class="${c2}" onclick="toggle('${l.id}',2)">${l.option2}</button>
       </div>`;
     }).join('');
-    updatePotential();
-    // Live bets
+    document.getElementById('betAmt').dispatchEvent(new Event('input'));
+
+    // Live Bets
     const lv=document.getElementById('liveBetsContainer'),
           ml=bets.filter(b=>b.user===currentSession.username&&!b.isSettled);
     if(!ml.length) lv.innerHTML='<p>No live bets.</p>';
     else {
       let h=`<table>
         <tr><th>ID</th><th>Amt</th><th>Sel</th><th>On</th></tr>`;
-      for(const b of ml){
-        const s=b.selections.map(sel=>{
+      ml.forEach(b=>{
+        const selstr=b.selections.map(sel=>{
           const ln=lines.find(x=>x.id===sel.lineId);
           return ln?`${ln.description}(${sel.choice===1?ln.option1:ln.option2})`:'';
         }).join(' | ');
         h+=`<tr>
-          <td>${b.id}</td><td>${b.betAmount}</td><td>${s}</td><td>${b.createdAt}</td>
+          <td>${b.id}</td><td>${b.betAmount}</td><td>${selstr}</td><td>${b.createdAt}</td>
         </tr>`;
-      }
+      });
       lv.innerHTML=h+'</table>';
     }
-    // Past bets
+
+    // Past Bets
     const pv=document.getElementById('pastPlaysContainer'),
           pm=bets.filter(b=>b.user===currentSession.username&&b.isSettled);
     if(!pm.length) pv.innerHTML='<p>No past bets.</p>';
     else {
       let h=`<table>
-        <tr><th>ID</th><th>Amt</th><th>Res</th><th>Status</th>
-            <th>Pay</th><th>On</th></tr>`;
-      for(const b of pm){
+        <tr><th>ID</th><th>Amt</th><th>Res</th><th>Status</th><th>Pay</th><th>On</th></tr>`;
+      pm.forEach(b=>{
         const rs=b.results.map(r=>r?'✓':'✗').join(' ');
         h+=`<tr>
           <td>${b.id}</td><td>${b.betAmount}</td><td>${rs}</td>
           <td>${b.isWon?'Won':'Lost'}</td><td>${b.payout}</td><td>${b.resolvedAt}</td>
         </tr>`;
-      }
+      });
       pv.innerHTML=h+'</table>';
     }
   }
