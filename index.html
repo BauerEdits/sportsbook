@@ -5,14 +5,14 @@
   <title>Betting App</title>
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <style>
-    body { font-family:Arial,sans-serif;margin:20px }
+    body { font-family:Arial,sans-serif; margin:20px }
     .hidden { display:none }
     .container { margin-bottom:20px }
     .line-block { border:1px solid #ddd; padding:10px; margin-bottom:10px }
-    .option-btn { margin-right:5px;padding:5px 10px; }
+    .option-btn { margin-right:5px; padding:5px 10px; }
     .selected { background:lightgreen }
-    table,th,td { border:1px solid #ccc;border-collapse:collapse;padding:5px }
-    a { color:blue;text-decoration:underline;cursor:pointer }
+    table,th,td { border:1px solid #ccc; border-collapse:collapse; padding:5px }
+    a { color:blue; text-decoration:underline; cursor:pointer }
   </style>
   <script src="https://www.gstatic.com/firebasejs/9.14.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.14.0/firebase-database-compat.js"></script>
@@ -146,7 +146,7 @@ document.addEventListener('DOMContentLoaded', ()=>{
     return u;
   }
 
-  // Realtime listeners
+  // Real-time listners for lines and bets
   db.ref("lines").on("value", snap=>{
     lines = Object.entries(snap.val()||{}).map(([id,o])=>({...o,id}));
     renderAdmin(); renderMember();
@@ -156,17 +156,13 @@ document.addEventListener('DOMContentLoaded', ()=>{
     renderAdmin(); renderMember();
   });
 
-  // Add line/bet
-  function addLine(l){ return db.ref("lines").push().set(l); }
-  function addBet(b){ return db.ref("bets").push().set(b); }
-
-  // Balance stored in Firebase under /users/{username}
-  function writeUserBalance(username, balance, lastClaimDate){
-    db.ref('users/'+username).set({ balance, lastClaimDate });
+  // Write or update user’s balance & lastClaimDate into Firebase
+  function writeUserData(username,balance,lastClaimDate){
+    db.ref('users/'+username).set({balance,lastClaimDate});
   }
-  function updateUserBalance(username, amt){
+  function updateUserBalance(username,amt){
     const r = db.ref('users/'+username+'/balance');
-    r.transaction(old=> (old||0) + amt);
+    r.transaction(old=>(old||0)+amt);
   }
 
   // LOGIN
@@ -182,27 +178,20 @@ document.addEventListener('DOMContentLoaded', ()=>{
     current = (user.role==="member" ? ensureBal(user) : user);
     saveSession();
 
-    // Subscribe to /users/{username}
+    // subscribe to /users/{username}
     if(userRef) userRef.off();
     userRef = db.ref('users/'+current.username);
-    userRef.once('value', snap=>{
-      if(!snap.exists()){
-        writeUserBalance(current.username, current.balance, current.lastClaimDate||"");
-      } else {
-        const d=snap.val();
-        current.balance = d.balance;
-        current.lastClaimDate = d.lastClaimDate||"";
-        saveSession();
-      }
+    userRef.on('value', snap=>{
+      const d=snap.val()||{};
+      current.balance = d.balance||0;
+      current.lastClaimDate = d.lastClaimDate||"";
+      saveSession();
       renderMember();
     });
-    userRef.on('value', snap=>{
-      const d=snap.val();
-      if(d){
-        current.balance = d.balance;
-        current.lastClaimDate = d.lastClaimDate||"";
-        saveSession();
-        renderMember();
+    // if first time login, ensure node exists
+    userRef.once('value', snap=>{
+      if(!snap.exists()){
+        writeUserData(current.username,current.balance,current.lastClaimDate||"");
       }
     });
 
@@ -239,19 +228,17 @@ document.addEventListener('DOMContentLoaded', ()=>{
     }
     const nu={id:genId(ul),username:un,password:pw,role:"member",balance:1000,lastClaimDate:""};
     ul.push(nu); saveU(ul);
-    writeUserBalance(nu.username,nu.balance,nu.lastClaimDate);
+    writeUserData(nu.username,nu.balance,nu.lastClaimDate);
 
     current=nu; saveSession();
     if(userRef) userRef.off();
     userRef = db.ref('users/'+current.username);
     userRef.on('value', snap=>{
-      const d=snap.val();
-      if(d){
-        current.balance = d.balance;
-        current.lastClaimDate = d.lastClaimDate;
-        saveSession();
-        renderMember();
-      }
+      const d=snap.val()||{};
+      current.balance = d.balance||0;
+      current.lastClaimDate = d.lastClaimDate||"";
+      saveSession();
+      renderMember();
     });
 
     show("signupSection",false);
@@ -273,7 +260,7 @@ document.addEventListener('DOMContentLoaded', ()=>{
     show("loginSection",true);
   });
 
-  // Toggle login/signup links
+  // Toggle login/signup
   document.getElementById("showSignup").addEventListener('click', ()=>{
     show("loginSection",false);
     show("signupSection",true);
@@ -283,7 +270,7 @@ document.addEventListener('DOMContentLoaded', ()=>{
     show("loginSection",true);
   });
 
-  // Resolve bets only when Admin clicks
+  // Admin resolves bets **only** on button click
   document.getElementById("resolveBetsBtn").addEventListener('click', async ()=>{
     for(const b of bets){
       if(b.isSettled) continue;
@@ -292,6 +279,7 @@ document.addEventListener('DOMContentLoaded', ()=>{
         const ln=lines.find(l=>l.id===sel.lineId);
         return !ln||ln.correctOption==null;
       })) continue;
+      // settle
       const results = b.selections.map(sel=>{
         const ln=lines.find(l=>l.id===sel.lineId);
         return Number(sel.choice)===Number(ln.correctOption);
@@ -301,9 +289,7 @@ document.addEventListener('DOMContentLoaded', ()=>{
       b.resolvedAt  = new Date().toLocaleString();
       b.isWon       = results.every(r=>r);
       b.payout      = b.isWon ? b.betAmount*(MULT[b.selections.length]||1) : 0;
-      if(b.isWon){
-        updateUserBalance(b.user,b.payout);
-      }
+      if(b.isWon) updateUserBalance(b.user,b.payout);
       await db.ref('bets/'+b.id).update({
         isSettled:b.isSettled,
         results:b.results,
@@ -316,11 +302,143 @@ document.addEventListener('DOMContentLoaded', ()=>{
     renderMember();
   });
 
-  // Renders (identical to before)
-  function renderAdmin(){ /* ...same as your code above... */ }
-  function renderMember(){ /* ...same as your code above... */ }
+  // Render functions (full implementations)
 
-  // Selection & place bet logic (same as before)
+  function renderAdmin(){
+    // Lines
+    const lc=document.getElementById("linesContainer");
+    if(!lines.length) lc.innerHTML="<p>No lines.</p>";
+    else {
+      let h=`<table>
+                <tr><th>ID</th><th>Desc</th><th>O1</th><th>O2</th><th>Status</th><th>Actions</th></tr>`;
+      for(const l of lines){
+        const st = l.correctOption==null
+                   ? "Pending"
+                   : (l.correctOption===1?l.option1:l.option2);
+        h+=`<tr>
+              <td>${l.id}</td>
+              <td>${l.description}</td>
+              <td>${l.option1}</td>
+              <td>${l.option2}</td>
+              <td>${st}</td>
+              <td>
+                <button onclick="db.ref('lines/${l.id}').update({correctOption:1})">Set1</button>
+                <button onclick="db.ref('lines/${l.id}').update({correctOption:2})">Set2</button>
+                <button onclick="db.ref('lines/${l.id}').remove()">Del</button>
+                <button onclick="db.ref('lines/${l.id}').update({correctOption:null})">Reuse</button>
+              </td>
+             </tr>`;
+      }
+      lc.innerHTML = h + "</table>";
+    }
+
+    // Live Plays
+    const lp=document.getElementById("livePlaysContainer"),
+          live=bets.filter(b=>!b.isSettled);
+    if(!live.length) lp.innerHTML="<p>No live plays.</p>";
+    else {
+      let h=`<table>
+                <tr><th>ID</th><th>User</th><th>Amt</th><th>Sel</th><th>On</th></tr>`;
+      for(const b of live){
+        const s=b.selections.map(sel=>{
+          const ln=lines.find(l=>l.id===sel.lineId);
+          return ln?`${ln.description}(${sel.choice===1?ln.option1:ln.option2})`:"";
+        }).join(" | ");
+        h+=`<tr>
+              <td>${b.id}</td><td>${b.user}</td><td>${b.betAmount}</td><td>${s}</td><td>${b.createdAt}</td>
+             </tr>`;
+      }
+      lp.innerHTML = h + "</table>";
+    }
+
+    // Past Plays
+    const pp=document.getElementById("pastPlaysContainer"),
+          past=bets.filter(b=>b.isSettled);
+    if(!past.length) pp.innerHTML="<p>No past plays.</p>";
+    else {
+      let h=`<table>
+                <tr><th>ID</th><th>User</th><th>Amt</th><th>Res</th><th>Status</th><th>Pay</th><th>On</th></tr>`;
+      for(const b of past){
+        const rs=b.results.map(r=>r?"✓":"✗").join(" ");
+        h+=`<tr>
+              <td>${b.id}</td><td>${b.user}</td><td>${b.betAmount}</td><td>${rs}</td>
+              <td>${b.isWon?"Won":"Lost"}</td><td>${b.payout}</td><td>${b.resolvedAt}</td>
+             </tr>`;
+      }
+      pp.innerHTML = h + "</table>";
+    }
+  }
+
+  function renderMember(){
+    if(!current) return;
+    // Bonus & Balance
+    const bs=document.getElementById("bonusSection"),
+          td=today();
+    if(!current.lastClaimDate||current.lastClaimDate!==td){
+      bs.innerHTML=`Balance: $${current.balance.toFixed(2)} <button id="claimB">Claim $5</button>`;
+      document.getElementById("claimB").onclick = ()=>{
+        updateUserBalance(current.username,5);
+        db.ref('users/'+current.username+'/lastClaimDate').set(td);
+      };
+    } else {
+      bs.innerHTML=`Balance: $${current.balance.toFixed(2)} <button disabled>Claimed</button>`;
+    }
+
+    // Available Lines
+    const av=document.getElementById("availableLines"),
+          al=lines.filter(l=>l.correctOption==null);
+    if(!al.length) av.innerHTML="<p>No available lines.</p>";
+    else {
+      av.innerHTML = al.map(l=>{
+        const c1=pending[l.id]===1?"option-btn selected":"option-btn",
+              c2=pending[l.id]===2?"option-btn selected":"option-btn";
+        return `<div class="line-block">
+                  <strong>${l.description}</strong><br/>
+                  <button class="${c1}" onclick="toggle('${l.id}',1)">${l.option1}</button>
+                  <button class="${c2}" onclick="toggle('${l.id}',2)">${l.option2}</button>
+                </div>`;
+      }).join("");
+    }
+    updatePotential();
+
+    // Live Bets
+    const lv=document.getElementById("liveBetsContainer"),
+          ml=bets.filter(b=>b.user===current.username&&!b.isSettled);
+    if(!ml.length) lv.innerHTML="<p>No live bets.</p>";
+    else {
+      let h=`<table>
+                <tr><th>ID</th><th>Amt</th><th>Sel</th><th>On</th></tr>`;
+      for(const b of ml){
+        const s=b.selections.map(sel=>{
+          const ln=lines.find(l=>l.id===sel.lineId);
+          return ln?`${ln.description}(${sel.choice===1?ln.option1:ln.option2})`:"";
+        }).join(" | ");
+        h+=`<tr>
+              <td>${b.id}</td><td>${b.betAmount}</td><td>${s}</td><td>${b.createdAt}</td>
+             </tr>`;
+      }
+      lv.innerHTML = h + "</table>";
+    }
+
+    // Past Bets
+    const pv=document.getElementById("pastBetsContainer"),
+          pm=bets.filter(b=>b.user===current.username&&b.isSettled);
+    if(!pm.length) pv.innerHTML="<p>No past bets.</p>";
+    else {
+      let h=`<table>
+                <tr><th>ID</th><th>Amt</th><th>Res</th><th>Status</th><th>Pay</th><th>On</th></tr>`;
+      for(const b of pm){
+        const rs=b.results.map(r=>r?"✓":"✗").join(" ");
+        h+=`<tr>
+              <td>${b.id}</td><td>${b.betAmount}</td><td>${rs}</td>
+              <td>${b.isWon?"Won":"Lost"}</td><td>${b.payout}</td><td>${b.resolvedAt}</td>
+             </tr>`;
+      }
+      pv.innerHTML = h + "</table>";
+    }
+  }
+
+  // Selection toggling & placing bets
   window.toggle = (id,ch)=>{
     if(pending[id]===ch) delete pending[id];
     else pending[id]=ch;
@@ -337,7 +455,8 @@ document.addEventListener('DOMContentLoaded', ()=>{
   }
   document.getElementById("betAmt").addEventListener('input',updatePotential);
 
-  document.getElementById("createLineForm").addEventListener('submit', e=>{
+  // Create line
+  document.getElementById("createLineForm").addEventListener('submit',e=>{
     e.preventDefault();
     const d=document.getElementById("lineDesc").value.trim(),
           o1=document.getElementById("opt1").value.trim(),
@@ -348,13 +467,14 @@ document.addEventListener('DOMContentLoaded', ()=>{
     }
   });
 
-  document.getElementById("placeBetForm").addEventListener('submit', async e=>{
+  // Place bet
+  document.getElementById("placeBetForm").addEventListener('submit',async e=>{
     e.preventDefault();
-    const amt = parseFloat(document.getElementById("betAmt").value);
+    const amt=parseFloat(document.getElementById("betAmt").value);
     if(amt>current.balance){ alert("Insufficient balance"); return; }
-    const sels = Object.entries(pending).map(([id,ch])=>({ lineId:id, choice:ch }));
+    const sels=Object.entries(pending).map(([id,ch])=>({lineId:id,choice:ch}));
     if(sels.length<2||sels.length>6){ alert("Pick 2–6 lines"); return; }
-    // deduct and write back to Firebase
+    // Deduct and write back
     updateUserBalance(current.username, -amt);
     await addBet({
       betAmount:amt,
