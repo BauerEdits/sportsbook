@@ -18,7 +18,7 @@
   <script src="https://www.gstatic.com/firebasejs/9.14.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.14.0/firebase-database-compat.js"></script>
   <script>
-    // Initialize Firebase at global scope
+    // 1) Initialize Firebase & expose `db` globally
     firebase.initializeApp({
       apiKey: "AIzaSyBfS12-iZ4ANoBuXPJWoMNvs8F94BARU54",
       authDomain: "gambling-1e67c.firebaseapp.com",
@@ -29,7 +29,6 @@
       appId: "1:233258255069:web:7f844c31c3664408dd5134",
       measurementId: "G-9HFLW7KVYW"
     });
-    // Expose db globally
     window.db = firebase.database();
   </script>
 </head>
@@ -69,6 +68,7 @@
   <div id="adminDashboard" class="container hidden">
     <h2>Admin Dashboard</h2>
     <button id="logoutAdmin">Logout</button>
+
     <h3>Create Line</h3>
     <form id="createLineForm" class="line-block">
       <input id="lineDesc" placeholder="Description" required />
@@ -76,12 +76,16 @@
       <input id="opt2" placeholder="Option 2" required />
       <button type="submit">Create</button>
     </form>
+
     <h3>Manage Lines</h3>
     <div id="linesContainer"></div>
+
     <h3>Live Plays</h3>
     <div id="livePlaysContainer"></div>
+
     <h3>Past Plays</h3>
     <div id="pastPlaysContainer"></div>
+
     <button id="resolveBetsBtn">Resolve Unsettled Bets</button>
   </div>
 
@@ -90,15 +94,19 @@
     <h2>Member Dashboard</h2>
     <button id="logoutMember">Logout</button>
     <div id="bonusSection" style="margin:10px 0"></div>
+
     <h3>Available Lines</h3>
     <div id="availableLines"></div>
+
     <form id="placeBetForm">
       <label>Bet Amount:</label><input type="number" step="0.01" id="betAmt" required /><br/>
       <p id="payoutDisplay">Potential Payout: N/A</p>
       <button type="submit">Place Bet</button>
     </form>
+
     <h3>Live Bets</h3>
     <div id="liveBetsContainer"></div>
+
     <h3>Past Bets</h3>
     <div id="pastBetsContainer"></div>
   </div>
@@ -106,11 +114,15 @@
   <script>
     const MULT = {2:3,3:7,4:10,5:12,6:25};
     let lines = [], bets = [], pending = {};
-    const UKEY = "bet_users";
-    let current = localStorage.currentUser ? JSON.parse(localStorage.currentUser) : null;
+    const UKEY="bet_users";
 
-    function show(id,on){
-      document.getElementById(id).classList[on?'remove':'add']('hidden');
+    let current = localStorage.currentUser
+      ? JSON.parse(localStorage.currentUser)
+      : null;
+
+    function show(id,on) {
+      document.getElementById(id)
+        .classList[on?'remove':'add']('hidden');
     }
     function loadU(){ return JSON.parse(localStorage.getItem(UKEY))||[]; }
     function saveU(u){ localStorage.setItem(UKEY,JSON.stringify(u)); }
@@ -118,9 +130,9 @@
     function rmC(){ localStorage.removeItem("currentUser"); }
     function genId(arr){ return arr.length?Math.max(...arr.map(x=>x.id))+1:1; }
     function today(){ return new Date().toISOString().split("T")[0]; }
-    function ensureBal(u){ if(u.role==="member"&&u.balance==null) u.balance=1000; return u; }
+    function ensureBal(u){ if(u.role==="member"&&u.balance==null) u.balance=0; return u; }
 
-    // restore session
+    // — restore session —
     if(current){
       show("loginSection",false);
       show("signupSection",false);
@@ -132,7 +144,7 @@
       }
     }
 
-    // toggle login/signup
+    // — toggle login/signup —
     document.getElementById("showSignup").onclick=()=>{
       show("loginSection",false);
       show("signupSection",true);
@@ -142,11 +154,11 @@
       show("loginSection",true);
     };
 
-    // LOGIN
+    // — LOGIN —
     document.getElementById("loginForm").onsubmit=e=>{
       e.preventDefault();
-      const ul = loadU();
-      const u = ul.find(x=>
+      let ul=loadU();
+      let u=ul.find(x=>
         x.username===document.getElementById("loginUsername").value.trim() &&
         x.password===document.getElementById("loginPassword").value
       );
@@ -154,8 +166,10 @@
         document.getElementById("loginMessage").textContent="Invalid credentials.";
         return;
       }
-      if(u.role==="member") ensureBal(u);
+      if(u.role==="member") u=ensureBal(u);
       current=u; saveC();
+      // ensure firebase has balance record for them
+      db.ref("balances/"+current.username).transaction(b=>b==null?current.balance:b);
       show("loginSection",false);
       if(u.role==="admin"){
         show("adminDashboard",true); renderAdmin();
@@ -164,7 +178,7 @@
       }
     };
 
-    // SIGNUP
+    // — SIGNUP —
     document.getElementById("signupForm").onsubmit=e=>{
       e.preventDefault();
       let un=document.getElementById("signupUsername").value.trim(),
@@ -175,7 +189,7 @@
         document.getElementById("signupMessage").textContent="Passwords do not match.";
         return;
       }
-      const ul=loadU();
+      let ul=loadU();
       if(rl==="admin"){
         document.getElementById("signupMessage").textContent="Admin exists.";
         return;
@@ -184,15 +198,18 @@
         document.getElementById("signupMessage").textContent="Username taken.";
         return;
       }
-      const nu={id:genId(ul),username:un,password:pw,role:"member",balance:1000,lastClaimDate:""};
+      let nu={ id:genId(ul), username:un, password:pw,
+               role:"member", balance:0, lastClaimDate:"" };
       ul.push(nu); saveU(ul);
       current=nu; saveC();
+      // set initial balance in firebase
+      db.ref("balances/"+nu.username).set(0);
       show("signupSection",false);
       show("memberDashboard",true);
       renderMember();
     };
 
-    // LOGOUT
+    // — LOGOUT —
     document.getElementById("logoutAdmin").onclick=()=>{
       current=null; rmC();
       show("adminDashboard",false);
@@ -204,29 +221,20 @@
       show("loginSection",true);
     };
 
-    // balance helper
-    function updateUserBalance(user,amt){
-      const ul=loadU(), ur=ul.find(x=>x.username===user);
-      if(!ur) return;
-      ur.balance=(ur.balance||0)+amt;
-      if(current&&current.username===user){
-        current.balance=ur.balance; saveC();
-      }
-      saveU(ul);
-    }
-
-    // firebase writes
+    // — Add line / add bet helpers —
     function addLine(l){ return db.ref("lines").push().set(l); }
     function addBet(b){ return db.ref("bets").push().set(b); }
 
-    // resolve only on button
+    // — Resolve bets on button click —
     document.getElementById("resolveBetsBtn").onclick=async()=>{
-      for(const b of bets){
+      for(let b of bets){
         if(b.isSettled) continue;
+        // skip if any leg still pending
         if(b.selections.some(sel=>{
           const ln=lines.find(l=>l.id===sel.lineId);
           return !ln||ln.correctOption==null;
         })) continue;
+        // compute results
         const results=b.selections.map(sel=>{
           const ln=lines.find(l=>l.id===sel.lineId);
           return Number(sel.choice)===Number(ln.correctOption);
@@ -236,7 +244,12 @@
         b.resolvedAt=new Date().toLocaleString();
         b.isWon=results.every(r=>r);
         b.payout=b.isWon?b.betAmount*MULT[b.selections.length]:0;
-        if(b.isWon) updateUserBalance(b.user,b.payout);
+        // ** update firebase balance **
+        if(b.isWon){
+          await db.ref("balances/"+b.user)
+                  .transaction(x=> (x||0) + b.payout);
+        }
+        // update this bet
         await db.ref("bets/"+b.id).update({
           isSettled:b.isSettled,
           results:b.results,
@@ -245,10 +258,11 @@
           payout:b.payout
         });
       }
-      renderAdmin(); renderMember();
+      renderAdmin();
+      renderMember();
     };
 
-    // realtime listeners
+    // — Real-time listeners —
     db.ref("lines").on("value",snap=>{
       lines=Object.entries(snap.val()||{}).map(([id,o])=>({...o,id}));
       renderAdmin(); renderMember();
@@ -257,26 +271,35 @@
       bets=Object.entries(snap.val()||{}).map(([id,o])=>({...o,id}));
       renderAdmin(); renderMember();
     });
+    // listen to balance changes
+    db.ref("balances").on("value",snap=>{
+      const balObj=snap.val()||{};
+      if(current && balObj[current.username]!=null){
+        current.balance=balObj[current.username];
+        saveC();
+      }
+      renderMember();
+    });
 
-    // renderAdmin
+    // — renderAdmin() —
     function renderAdmin(){
-      const lc=document.getElementById("linesContainer"),
-            lp=document.getElementById("livePlaysContainer"),
-            pp=document.getElementById("pastPlaysContainer");
+      let lc=document.getElementById("linesContainer"),
+          lp=document.getElementById("livePlaysContainer"),
+          pp=document.getElementById("pastPlaysContainer");
       // lines
       if(!lines.length) lc.innerHTML="<p>No lines.</p>";
       else{
         let h="<table><tr><th>ID</th><th>Desc</th><th>O1</th><th>O2</th><th>Status</th><th>Actions</th></tr>";
         lines.forEach(l=>{
-          const st=l.correctOption==null?"Pending":(l.correctOption===1?l.option1:l.option2);
-          h+=`<tr><td>${l.id}</td><td>${l.description}</td><td>${l.option1}</td><td>${l.option2}</td>
-               <td>${st}</td>
-               <td>
-                 <button onclick="db.ref('lines/${l.id}').update({correctOption:1})">Set1</button>
-                 <button onclick="db.ref('lines/${l.id}').update({correctOption:2})">Set2</button>
-                 <button onclick="db.ref('lines/${l.id}').remove()">Del</button>
-                 <button onclick="db.ref('lines/${l.id}').update({correctOption:null})">Reuse</button>
-               </td></tr>`;
+          let st=l.correctOption==null?"Pending":(l.correctOption===1?l.option1:l.option2);
+          h+=`<tr><td>${l.id}</td><td>${l.description}</td>
+              <td>${l.option1}</td><td>${l.option2}</td><td>${st}</td>
+              <td>
+                <button onclick="db.ref('lines/${l.id}').update({correctOption:1})">Set1</button>
+                <button onclick="db.ref('lines/${l.id}').update({correctOption:2})">Set2</button>
+                <button onclick="db.ref('lines/${l.id}').remove()">Del</button>
+                <button onclick="db.ref('lines/${l.id}').update({correctOption:null})">Reuse</button>
+              </td></tr>`;
         });
         lc.innerHTML=h+"</table>";
       }
@@ -286,11 +309,12 @@
       else{
         let h="<table><tr><th>ID</th><th>User</th><th>Amt</th><th>Sel</th><th>On</th></tr>";
         live.forEach(b=>{
-          const s=b.selections.map(sel=>{
-            const ln=lines.find(x=>x.id===sel.lineId);
+          let s=b.selections.map(sel=>{
+            let ln=lines.find(x=>x.id===sel.lineId);
             return ln?`${ln.description}(${sel.choice===1?ln.option1:ln.option2})`:"";
           }).join(" | ");
-          h+=`<tr><td>${b.id}</td><td>${b.user}</td><td>${b.betAmount}</td><td>${s}</td><td>${b.createdAt}</td></tr>`;
+          h+=`<tr><td>${b.id}</td><td>${b.user}</td><td>${b.betAmount}</td>
+              <td>${s}</td><td>${b.createdAt}</td></tr>`;
         });
         lp.innerHTML=h+"</table>";
       }
@@ -300,50 +324,50 @@
       else{
         let h="<table><tr><th>ID</th><th>User</th><th>Amt</th><th>Res</th><th>Status</th><th>Pay</th><th>On</th></tr>";
         past.forEach(b=>{
-          const rs=b.results.map(r=>r?"✓":"✗").join(" ");
-          h+=`<tr><td>${b.id}</td><td>${b.user}</td><td>${b.betAmount}</td><td>${rs}</td>
-               <td>${b.isWon?"Won":"Lost"}</td><td>${b.payout}</td><td>${b.resolvedAt}</td></tr>`;
+          let rs=b.results.map(r=>r?"✓":"✗").join(" ");
+          h+=`<tr><td>${b.id}</td><td>${b.user}</td><td>${b.betAmount}</td>
+              <td>${rs}</td><td>${b.isWon?"Won":"Lost"}</td><td>${b.payout}</td><td>${b.resolvedAt}</td></tr>`;
         });
         pp.innerHTML=h+"</table>";
       }
     }
 
-    // renderMember
+    // — renderMember() —
     function renderMember(){
-      const bs=document.getElementById("bonusSection"), td=today();
+      // bonus
+      let bs=document.getElementById("bonusSection"), td=today();
       if(!current.lastClaimDate||current.lastClaimDate!==td){
         bs.innerHTML=`Balance: $${current.balance.toFixed(2)} <button id="claimB">Claim $5</button>`;
         document.getElementById("claimB").onclick=()=>{
-          current.balance+=5;
+          db.ref("balances/"+current.username).transaction(x=>(x||0)+5);
           current.lastClaimDate=td;
           saveU(loadU().map(u=>u.username===current.username?current:u));
-          renderMember();
         };
       } else {
         bs.innerHTML=`Balance: $${current.balance.toFixed(2)} <button disabled>Claimed</button>`;
       }
       // available lines
-      const av=document.getElementById("availableLines"),
-            al=lines.filter(l=>l.correctOption==null);
+      let av=document.getElementById("availableLines"),
+          al=lines.filter(l=>l.correctOption==null);
       if(!al.length) av.innerHTML="<p>No available lines.</p>";
       else av.innerHTML=al.map(l=>{
-        const c1=pending[l.id]===1?"option-btn selected":"option-btn",
-              c2=pending[l.id]===2?"option-btn selected":"option-btn";
+        let c1=pending[l.id]===1?"option-btn selected":"option-btn",
+            c2=pending[l.id]===2?"option-btn selected":"option-btn";
         return `<div class="line-block"><strong>${l.description}</strong><br/>
-          <button class="${c1}" onclick="toggle('${l.id}',1)">${l.option1}</button>
-          <button class="${c2}" onclick="toggle('${l.id}',2)">${l.option2}</button>
-        </div>`;
+                  <button class="${c1}" onclick="toggle('${l.id}',1)">${l.option1}</button>
+                  <button class="${c2}" onclick="toggle('${l.id}',2)">${l.option2}</button>
+                </div>`;
       }).join("");
       updatePotential();
       // live bets
-      const lv=document.getElementById("liveBetsContainer"),
-            ml=bets.filter(b=>b.user===current.username&&!b.isSettled);
+      let lv=document.getElementById("liveBetsContainer"),
+          ml=bets.filter(b=>b.user===current.username&&!b.isSettled);
       if(!ml.length) lv.innerHTML="<p>No live bets.</p>";
       else{
         let h="<table><tr><th>ID</th><th>Amt</th><th>Sel</th><th>On</th></tr>";
         ml.forEach(b=>{
-          const s=b.selections.map(sel=>{
-            const ln=lines.find(x=>x.id===sel.lineId);
+          let s=b.selections.map(sel=>{
+            let ln=lines.find(x=>x.id===sel.lineId);
             return ln?`${ln.description}(${sel.choice===1?ln.option1:ln.option2})`:"";
           }).join(" | ");
           h+=`<tr><td>${b.id}</td><td>${b.betAmount}</td><td>${s}</td><td>${b.createdAt}</td></tr>`;
@@ -351,24 +375,22 @@
         lv.innerHTML=h+"</table>";
       }
       // past bets
-      const pv=document.getElementById("pastBetsContainer"),
-            pm=bets.filter(b=>b.user===current.username&&b.isSettled);
+      let pv=document.getElementById("pastBetsContainer"),
+          pm=bets.filter(b=>b.user===current.username&&b.isSettled);
       if(!pm.length) pv.innerHTML="<p>No past bets.</p>";
       else{
         let h="<table><tr><th>ID</th><th>Amt</th><th>Res</th><th>Status</th><th>Pay</th><th>On</th></tr>";
         pm.forEach(b=>{
-          const rs=b.results.map(r=>r?"✓":"✗").join(" ");
-          h+=`<tr><td>${b.id}</td><td>${b.betAmount}</td><td`;
-          h+=`>${rs}</td><td>${b.isWon?"Won":"Lost"}</td><td>${b.payout}</td><td>${b.resolvedAt}</td></tr>`;
+          let rs=b.results.map(r=>r?"✓":"✗").join(" ");
+          h+=`<tr><td>${b.id}</td><td>${b.betAmount}</td><td>${rs}</td><td>${b.isWon?"Won":"Lost"}</td><td>${b.payout}</td><td>${b.resolvedAt}</td></tr>`;
         });
         pv.innerHTML=h+"</table>";
       }
     }
 
-    // toggle & place
+    // toggle & place bet
     function toggle(id,ch){
-      if(pending[id]===ch) delete pending[id];
-      else pending[id]=ch;
+      pending[id]==ch?delete pending[id]:pending[id]=ch;
       renderMember();
     }
     function updatePotential(){
@@ -398,18 +420,21 @@
       if(amt>current.balance){ alert("Insufficient"); return; }
       const sels=Object.entries(pending).map(([id,ch])=>({lineId:id,choice:ch}));
       if(sels.length<2||sels.length>6){ alert("Pick 2–6 lines"); return; }
-      current.balance-=amt;
-      saveU(loadU().map(u=>u.username===current.username?current:u));
+      // deduct immediately in firebase
+      await db.ref("balances/"+current.username)
+              .transaction(x=> (x||0) - amt);
       await addBet({
-        betAmount:amt,user:current.username,
-        selections:sels,isSettled:false,
-        isWon:null,payout:null,
+        betAmount:amt,
+        user:current.username,
+        selections:sels,
+        isSettled:false,
+        isWon:null,
+        payout:null,
         createdAt:new Date().toLocaleString(),
         resolvedAt:null
       });
       pending={};
       e.target.reset();
-      renderMember();
     };
   </script>
 </body>
