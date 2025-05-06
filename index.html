@@ -127,7 +127,7 @@
   function genId(arr){ return arr.length?Math.max(...arr.map(x=>x.id))+1:1; }
   function today(){ return new Date().toISOString().split("T")[0]; }
 
-  // subscribe to *own* balance
+  // subscribe to own balance
   function listenBalance(){
     if(!current || current.role!=="member") return;
     db.ref("balances/"+current.username)
@@ -147,8 +147,7 @@
       renderAdmin();
     } else {
       show("memberDashboard",true);
-      listenBalance();  // <-- start listening
-      renderMember();
+      listenBalance();
     }
   }
 
@@ -175,8 +174,9 @@
       return;
     }
     current=u; saveC();
-    // ensure firebase has a balance node
-    db.ref("balances/"+current.username).transaction(b=>b==null?current.balance||0:b);
+    // init or bump to $1000 if missing
+    db.ref("balances/"+current.username)
+      .transaction(b=> b==null ? 1000 : b);
     show("loginSection",false);
     if(current.role==="admin"){
       show("adminDashboard",true);
@@ -184,7 +184,6 @@
     } else {
       show("memberDashboard",true);
       listenBalance();
-      renderMember();
     }
   };
 
@@ -204,15 +203,14 @@
       document.getElementById("signupMessage").textContent="Username taken.";
       return;
     }
-    let nu={ id:genId(ul), username:un, password:pw, role:rl, balance:0, lastClaimDate:"" };
+    let nu={ id:genId(ul), username:un, password:pw, role:rl };
     ul.push(nu); saveU(ul);
     current=nu; saveC();
-    // write initial balance
-    db.ref("balances/"+nu.username).set(0);
+    // set starting $1000
+    db.ref("balances/"+nu.username).set(1000);
     show("signupSection",false);
     show("memberDashboard",true);
     listenBalance();
-    renderMember();
   };
 
   // LOGOUT
@@ -231,16 +229,15 @@
   function addLine(l){ return db.ref("lines").push().set(l); }
   function addBet(b){ return db.ref("bets").push().set(b); }
 
-  // Resolve bets on button click
+  // Resolve bets
   document.getElementById("resolveBetsBtn").onclick=async()=>{
     for(let b of bets){
       if(b.isSettled) continue;
-      // skip if any leg pending
+      // skip if any leg still pending
       if(b.selections.some(sel=>{
         const ln=lines.find(l=>l.id===sel.lineId);
         return !ln||ln.correctOption==null;
       })) continue;
-      // settle
       const results=b.selections.map(sel=>{
         const ln=lines.find(l=>l.id===sel.lineId);
         return Number(sel.choice)===Number(ln.correctOption);
@@ -251,9 +248,8 @@
       b.isWon=results.every(r=>r);
       b.payout=b.isWon?b.betAmount*MULT[b.selections.length]:0;
       if(b.isWon){
-        // credit via transaction
         await db.ref("balances/"+b.user)
-                .transaction(x=>(x||0)+b.payout);
+          .transaction(x=>(x||0)+b.payout);
       }
       await db.ref("bets/"+b.id).update({
         isSettled:b.isSettled,
@@ -266,7 +262,7 @@
     renderAdmin(); renderMember();
   };
 
-  // Real-time listeners
+  // real-time data
   db.ref("lines").on("value",snap=>{
     lines=Object.entries(snap.val()||{}).map(([id,o])=>({...o,id}));
     renderAdmin(); renderMember();
@@ -281,9 +277,9 @@
     let lc=document.getElementById("linesContainer"),
         lp=document.getElementById("livePlaysContainer"),
         pp=document.getElementById("pastPlaysContainer");
-    // lines
+    // Lines
     if(!lines.length) lc.innerHTML="<p>No lines.</p>";
-    else{
+    else {
       let h="<table><tr><th>ID</th><th>Desc</th><th>O1</th><th>O2</th><th>Status</th><th>Actions</th></tr>";
       lines.forEach(l=>{
         let st=l.correctOption==null?"Pending":(l.correctOption===1?l.option1:l.option2);
@@ -297,10 +293,10 @@
       });
       lc.innerHTML=h+"</table>";
     }
-    // live plays
+    // Live plays
     const live=bets.filter(b=>!b.isSettled);
     if(!live.length) lp.innerHTML="<p>No live plays.</p>";
-    else{
+    else {
       let h="<table><tr><th>ID</th><th>User</th><th>Amt</th><th>Sel</th><th>On</th></tr>";
       live.forEach(b=>{
         let s=b.selections.map(sel=>{
@@ -311,10 +307,10 @@
       });
       lp.innerHTML=h+"</table>";
     }
-    // past plays
+    // Past plays
     const past=bets.filter(b=>b.isSettled);
     if(!past.length) pp.innerHTML="<p>No past plays.</p>";
-    else{
+    else {
       let h="<table><tr><th>ID</th><th>User</th><th>Amt</th><th>Res</th><th>Status</th><th>Pay</th><th>On</th></tr>";
       past.forEach(b=>{
         let rs=b.results.map(r=>r?"✓":"✗").join(" ");
@@ -326,20 +322,20 @@
 
   // renderMember()
   function renderMember(){
-    // bonus
+    // Bonus
     let bs=document.getElementById("bonusSection"), td=today();
     if(!current.lastClaimDate||current.lastClaimDate!==td){
       bs.innerHTML=`Balance: $${(current.balance||0).toFixed(2)} <button id="claimB">Claim $5</button>`;
       document.getElementById("claimB").onclick=()=>{
         db.ref("balances/"+current.username).transaction(x=>(x||0)+5);
         current.lastClaimDate=td;
-        let ul=loadU(); ul.forEach(u=>{ if(u.username===current.username) u.lastClaimDate=td });
+        let ul=loadU(); ul.forEach(u=>{ if(u.username===current.username) u.lastClaimDate=td; });
         saveU(ul);
       };
     } else {
       bs.innerHTML=`Balance: $${(current.balance||0).toFixed(2)} <button disabled>Claimed</button>`;
     }
-    // available lines
+    // Available lines
     let av=document.getElementById("availableLines"),
         al=lines.filter(l=>l.correctOption==null);
     if(!al.length) av.innerHTML="<p>No available lines.</p>";
@@ -352,11 +348,11 @@
               </div>`;
     }).join("");
     updatePotential();
-    // live bets
+    // Live bets
     let lv=document.getElementById("liveBetsContainer"),
         ml=bets.filter(b=>b.user===current.username&&!b.isSettled);
     if(!ml.length) lv.innerHTML="<p>No live bets.</p>";
-    else{
+    else {
       let h="<table><tr><th>ID</th><th>Amt</th><th>Sel</th><th>On</th></tr>";
       ml.forEach(b=>{
         let s=b.selections.map(sel=>{
@@ -367,11 +363,11 @@
       });
       lv.innerHTML=h+"</table>";
     }
-    // past bets
+    // Past bets
     let pv=document.getElementById("pastBetsContainer"),
         pm=bets.filter(b=>b.user===current.username&&b.isSettled);
     if(!pm.length) pv.innerHTML="<p>No past bets.</p>";
-    else{
+    else {
       let h="<table><tr><th>ID</th><th>Amt</th><th>Res</th><th>Status</th><th>Pay</th><th>On</th></tr>";
       pm.forEach(b=>{
         let rs=b.results.map(r=>r?"✓":"✗").join(" ");
@@ -381,7 +377,7 @@
     }
   }
 
-  // toggle & bet
+  // toggle & potential
   function toggle(id,ch){
     pending[id]==ch?delete pending[id]:pending[id]=ch;
     renderMember();
@@ -396,27 +392,32 @@
   }
   document.getElementById("betAmt").oninput=updatePotential;
 
+  // create line
   document.getElementById("createLineForm").onsubmit=e=>{
     e.preventDefault();
-    const d=document.getElementById("lineDesc").value.trim(),
-          o1=document.getElementById("opt1").value.trim(),
-          o2=document.getElementById("opt2").value.trim();
+    let d=document.getElementById("lineDesc").value.trim(),
+        o1=document.getElementById("opt1").value.trim(),
+        o2=document.getElementById("opt2").value.trim();
     if(d&&o1&&o2) addLine({description:d,option1:o1,option2:o2,correctOption:null})
                     .then(_=>e.target.reset());
   };
 
+  // place bet
   document.getElementById("placeBetForm").onsubmit=async e=>{
     e.preventDefault();
     const amt=parseFloat(document.getElementById("betAmt").value);
     if(amt>current.balance){ alert("Insufficient"); return; }
     const sels=Object.entries(pending).map(([id,ch])=>({lineId:id,choice:ch}));
     if(sels.length<2||sels.length>6){ alert("Pick 2–6 lines"); return; }
-    // deduct
+    // deduct immediately
     await db.ref("balances/"+current.username).transaction(x=>(x||0)-amt);
     await addBet({
-      betAmount:amt,user:current.username,
-      selections:sels,isSettled:false,
-      isWon:null,payout:null,
+      betAmount:amt,
+      user:current.username,
+      selections:sels,
+      isSettled:false,
+      isWon:null,
+      payout:null,
       createdAt:new Date().toLocaleString(),
       resolvedAt:null
     });
@@ -424,5 +425,6 @@
     e.target.reset();
   };
 </script>
+
 </body>
 </html>
