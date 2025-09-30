@@ -53,11 +53,6 @@
       <label>Username:</label><input id="signupUsername" required /><br/>
       <label>Password:</label><input type="password" id="signupPassword" required /><br/>
       <label>Confirm:</label><input type="password" id="signupConfirm" required /><br/>
-      <label>Role:</label>
-      <select id="signupRole">
-        <option value="member">Member</option>
-        <option value="admin">Admin</option>
-      </select><br/>
       <button type="submit">Sign Up</button>
     </form>
     <p id="signupMessage" style="color:red"></p>
@@ -127,7 +122,6 @@
   function genId(arr){ return arr.length?Math.max(...arr.map(x=>x.id))+1:1; }
   function today(){ return new Date().toISOString().split("T")[0]; }
 
-  // subscribe to own balance
   function listenBalance(){
     if(!current || current.role!=="member") return;
     db.ref("balances/"+current.username)
@@ -138,7 +132,6 @@
       });
   }
 
-  // restore session
   if(current){
     show("loginSection",false);
     show("signupSection",false);
@@ -151,7 +144,6 @@
     }
   }
 
-  // toggle login/signup
   document.getElementById("showSignup").onclick=()=>{
     show("loginSection",false);
     show("signupSection",true);
@@ -173,10 +165,20 @@
       document.getElementById("loginMessage").textContent="Invalid credentials.";
       return;
     }
+    // enforce single admin with secret code
+    if(u.username==="admin" && u.password==="admin123"){
+      let secret = prompt("Enter admin security code:");
+      if(secret === "MY_SECRET_CODE_789"){ // change to your real secret
+        u.role="admin";
+      } else {
+        alert("Invalid admin code.");
+        return;
+      }
+    } else {
+      u.role="member";
+    }
     current=u; saveC();
-    // init or bump to $1000 if missing
-    db.ref("balances/"+current.username)
-      .transaction(b=> b==null ? 1000 : b);
+    db.ref("balances/"+current.username).transaction(b=> b==null ? 1000 : b);
     show("loginSection",false);
     if(current.role==="admin"){
       show("adminDashboard",true);
@@ -187,13 +189,12 @@
     }
   };
 
-  // SIGNUP
+  // SIGNUP (members only)
   document.getElementById("signupForm").onsubmit=e=>{
     e.preventDefault();
     let un=document.getElementById("signupUsername").value.trim(),
         pw=document.getElementById("signupPassword").value,
-        cp=document.getElementById("signupConfirm").value,
-        rl=document.getElementById("signupRole").value;
+        cp=document.getElementById("signupConfirm").value;
     if(pw!==cp){
       document.getElementById("signupMessage").textContent="Passwords do not match.";
       return;
@@ -203,17 +204,15 @@
       document.getElementById("signupMessage").textContent="Username taken.";
       return;
     }
-    let nu={ id:genId(ul), username:un, password:pw, role:rl };
+    let nu={ id:genId(ul), username:un, password:pw, role:"member" };
     ul.push(nu); saveU(ul);
     current=nu; saveC();
-    // set starting $1000
     db.ref("balances/"+nu.username).set(1000);
     show("signupSection",false);
     show("memberDashboard",true);
     listenBalance();
   };
 
-  // LOGOUT
   document.getElementById("logoutAdmin").onclick=()=>{
     current=null; rmC();
     show("adminDashboard",false);
@@ -225,15 +224,12 @@
     show("loginSection",true);
   };
 
-  // Firebase writes
   function addLine(l){ return db.ref("lines").push().set(l); }
   function addBet(b){ return db.ref("bets").push().set(b); }
 
-  // Resolve bets
   document.getElementById("resolveBetsBtn").onclick=async()=>{
     for(let b of bets){
       if(b.isSettled) continue;
-      // skip if any leg still pending
       if(b.selections.some(sel=>{
         const ln=lines.find(l=>l.id===sel.lineId);
         return !ln||ln.correctOption==null;
@@ -248,8 +244,7 @@
       b.isWon=results.every(r=>r);
       b.payout=b.isWon?b.betAmount*MULT[b.selections.length]:0;
       if(b.isWon){
-        await db.ref("balances/"+b.user)
-          .transaction(x=>(x||0)+b.payout);
+        await db.ref("balances/"+b.user).transaction(x=>(x||0)+b.payout);
       }
       await db.ref("bets/"+b.id).update({
         isSettled:b.isSettled,
@@ -262,7 +257,6 @@
     renderAdmin(); renderMember();
   };
 
-  // real-time data
   db.ref("lines").on("value",snap=>{
     lines=Object.entries(snap.val()||{}).map(([id,o])=>({...o,id}));
     renderAdmin(); renderMember();
@@ -272,12 +266,10 @@
     renderAdmin(); renderMember();
   });
 
-  // renderAdmin()
   function renderAdmin(){
     let lc=document.getElementById("linesContainer"),
         lp=document.getElementById("livePlaysContainer"),
         pp=document.getElementById("pastPlaysContainer");
-    // Lines
     if(!lines.length) lc.innerHTML="<p>No lines.</p>";
     else {
       let h="<table><tr><th>ID</th><th>Desc</th><th>O1</th><th>O2</th><th>Status</th><th>Actions</th></tr>";
@@ -293,7 +285,6 @@
       });
       lc.innerHTML=h+"</table>";
     }
-    // Live plays
     const live=bets.filter(b=>!b.isSettled);
     if(!live.length) lp.innerHTML="<p>No live plays.</p>";
     else {
@@ -307,7 +298,6 @@
       });
       lp.innerHTML=h+"</table>";
     }
-    // Past plays
     const past=bets.filter(b=>b.isSettled);
     if(!past.length) pp.innerHTML="<p>No past plays.</p>";
     else {
@@ -320,9 +310,7 @@
     }
   }
 
-  // renderMember()
   function renderMember(){
-    // Bonus
     let bs=document.getElementById("bonusSection"), td=today();
     if(!current.lastClaimDate||current.lastClaimDate!==td){
       bs.innerHTML=`Balance: $${(current.balance||0).toFixed(2)} <button id="claimB">Claim $5</button>`;
@@ -335,7 +323,6 @@
     } else {
       bs.innerHTML=`Balance: $${(current.balance||0).toFixed(2)} <button disabled>Claimed</button>`;
     }
-    // Available lines
     let av=document.getElementById("availableLines"),
         al=lines.filter(l=>l.correctOption==null);
     if(!al.length) av.innerHTML="<p>No available lines.</p>";
@@ -348,7 +335,6 @@
               </div>`;
     }).join("");
     updatePotential();
-    // Live bets
     let lv=document.getElementById("liveBetsContainer"),
         ml=bets.filter(b=>b.user===current.username&&!b.isSettled);
     if(!ml.length) lv.innerHTML="<p>No live bets.</p>";
@@ -363,7 +349,6 @@
       });
       lv.innerHTML=h+"</table>";
     }
-    // Past bets
     let pv=document.getElementById("pastBetsContainer"),
         pm=bets.filter(b=>b.user===current.username&&b.isSettled);
     if(!pm.length) pv.innerHTML="<p>No past bets.</p>";
@@ -377,7 +362,6 @@
     }
   }
 
-  // toggle & potential
   function toggle(id,ch){
     pending[id]==ch?delete pending[id]:pending[id]=ch;
     renderMember();
@@ -392,7 +376,6 @@
   }
   document.getElementById("betAmt").oninput=updatePotential;
 
-  // create line
   document.getElementById("createLineForm").onsubmit=e=>{
     e.preventDefault();
     let d=document.getElementById("lineDesc").value.trim(),
@@ -402,14 +385,12 @@
                     .then(_=>e.target.reset());
   };
 
-  // place bet
   document.getElementById("placeBetForm").onsubmit=async e=>{
     e.preventDefault();
     const amt=parseFloat(document.getElementById("betAmt").value);
     if(amt>current.balance){ alert("Insufficient"); return; }
     const sels=Object.entries(pending).map(([id,ch])=>({lineId:id,choice:ch}));
     if(sels.length<2||sels.length>6){ alert("Pick 2–6 lines"); return; }
-    // deduct immediately
     await db.ref("balances/"+current.username).transaction(x=>(x||0)-amt);
     await addBet({
       betAmount:amt,
